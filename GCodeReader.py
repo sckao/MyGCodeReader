@@ -1,96 +1,8 @@
 import numpy as np
 import math
-
+import os
+from GCodePaser import GWords
 from GCodeViewer import ShowPath, vMag
-#from GCodePlotly import ShowVectors, vMag
-
-#from PyQt5.QtWidgets import QApplication, QLabel, QWidget, QPushButton, QVBoxLayout
-
-#aapp = QApplication([])
-#label = QLabel(" Qt Test ")
-
-#window = QWidget()
-#layout = QVBoxLayout()
-
-#layout.addWidget( label )
-#layout.addWidget( QPushButton('top'))
-#layout.addWidget( QPushButton('down'))
-#window.setLayout( layout )
-#window.show()
-
-#app.exec_()
-
-class GWords :
-
-    xVal = 0
-    yVal = 0
-    zVal = 0
-    eVal = 0
-    fVal = 0
-    gWords = []
-    isG0G1 = False
-    retract = False
-    command = ''
-    update = [0,0,0,0,0] # [x,y,z,e,f]
-
-
-    def __init__(self):
-        self.update = [0,0,0,0,0]
-
-    def readline(self, gline ):
-        self.gWords = gline.split()
-        self.update = [0,0,0,0,0]
-        self.eVal = 0.
-
-    def getPos(self):
-
-        if len( self.gWords ) < 1:
-            print("No Entry")
-
-        elif self.gWords[0]== 'G0' or self.gWords[0] == 'G1':
-
-            self.isG0G1 = True
-
-            for ig in self.gWords :
-                if ig[0] == 'X':
-                    self.xVal = float(ig[1:])
-                    self.update[0] = 1
-                if ig[0] == 'Y':
-                    self.yVal = float(ig[1:])
-                    self.update[1] = 1
-                if ig[0] == 'Z':
-                    self.zVal = float(ig[1:])
-                    self.update[2] = 1
-                if ig[0] == 'E':
-                    self.eVal = float(ig[1:])
-                    self.update[3] = 1
-                    if float(self.eVal) < 0. :
-                        self.retract = True
-                    else:
-                        self.retract = False
-                if ig[0] == 'F':
-                    self.fVal = float(ig[1:]) / 60.
-                    self.update[4] = 1
-
-    def getCommand(self):
-
-        if len( self.gWords ) < 1:
-            print("No Entry")
-
-        elif self.gWords[0][0] != ';':
-            self.command = self.gWords[0]
-
-        elif self.gWords[0][0] == ';':
-            self.command = 'Comment'
-
-    def posUpdated(self):
-
-        move = False
-        if sum( self.update[:3]) > 0 :
-            move = True
-
-        return move
-
 
 
 def makeV( p1, p2 ):
@@ -120,15 +32,41 @@ def derivative(v1, v2):
         print( ' zero mag \n')
         return dv
 
+def SaveNewGCode( gfile, gword ):
+
+    #if os.path.exists( gfile) : return
+
+    cmd = gword.command
+    para = ''
+    for i in gword.para :
+        para = para + ' ' + i
+
+    if  cmd == 'Comment' :
+        return
+    elif  cmd != 'G0' and cmd != 'G1' :
+        gfile.write( cmd + para + '\n' )
+    elif cmd == 'G0' or cmd == 'G1' :
+        if gword.update[4] == 1 :
+            gfile.write( cmd + ' X%.3f Y%.3f Z%.3f E%.4f F%.0f\n' %(gword.xVal, gword.yVal, gword.zVal, gword.eVal, gword.fVal*60) )
+        else :
+            gfile.write( cmd + ' X%.3f Y%.3f Z%.3f E%.4f\n' %(gword.xVal, gword.yVal, gword.zVal, gword.eVal) )
 
 
+
+# Read files and out put GCode results
 fname    = input('Read filename : ')
 foutname = input('Write filename : ')
+if foutname == '' :
+    foutname = 'out.txt'
+gfilename = input('Output GCode filename : ')
+if gfilename != '' :
+    gfile = open( gfilename, 'w' )
+
 
 f = open(fname, 'r+')
 fout = open( foutname, 'w')
 
-print(' open file :')
+fout.write( ' id,  X,  Y,  Z,  dr,  rho,  E,  sumL \n' )
 
 # position and color list for drawing plots
 v = []
@@ -164,6 +102,7 @@ for line in f:
     cmd = gd.command
     # Get X Y Z E F
     gd.getPos()
+    SaveNewGCode( gfile, gd)
 
     if cmd == 'G28':
         print(' Home - Initialized ' + cmd +' \n')
@@ -180,7 +119,6 @@ for line in f:
         if dz == 0. and gd.eVal > 0. and zL != gd.zVal :
             zL = gd.zVal
             print('Change Layer Height ={:.3f} \n'.format(zL))
-            fout.write( 'Change Layer Height ={:.3f} \n'.format(zL) )
             Flush = True
 
 
@@ -190,8 +128,8 @@ for line in f:
             dr = vMag( v_dr )
 
             if gd.eVal > 0. :
-                totalL += dr
-                dL += dr
+               totalL += dr
+               dL += dr
 
             if dr != 0. and gd.eVal > 0. :
                 rho = gd.eVal / dr
@@ -217,9 +155,15 @@ for line in f:
             dL = 0.
 
         # output            x, y, z, dr, rho, E, dL
+        if i == 0 :
+            fout.write( '; Change Layer Height ={:.3f} \n'.format(zL) )
+
         fout.write( '{:5d}'.format(i) +', {:.3f}'.format(v[i][0]) + ', {:.3f}'.format(v[i][1]) + ', {:.3f}'.format(gd.zVal) +', {:.3f}'.format(dr) + ', {:.3f}'.format(rho) + ', {:.4f}'.format(gd.eVal)+ ', {:.3f}'.format(dL) + '\n' )
         #fout.write( '{:.3f}'.format(gd.xVal) + ',{:.3f}'.format(gd.yVal) + ', {:.3f}'.format(gd.zVal) + ', {:.4f}'.format(gd.eVal)+ ',{:.4f}'.format(gd.fVal) + '\n' )
+        # Save New GCode
+        SaveNewGCode( gfile, gd)
 
+        # E value < 0, Z movement only
         if gd.retract  and gd.update[2] != 0 :
             print(' Retract ' + ' x= {:.3f}'.format(gd.xVal) + ' y= {:.3f}'.format( gd.yVal ) + ' z= {:.3f}'.format( gd.zVal ) +  ' e= {:.3f}'.format(gd.eVal) )
             h.append( [ gd.xVal, gd.yVal] )
@@ -233,8 +177,9 @@ for line in f:
         fout.write('{:.3f}'.format(totalL) + '\n' )
 
     if Flush :
+
+        print('This layer has %d vector and %d Z movement ' %(len(v), len(h)) )
         ShowPath(v, cl, h, hcl )
-        #ShowVectors( v  )
         v = []
         cl = []
         h = []
@@ -245,6 +190,5 @@ for line in f:
 
 f.close()
 fout.close()
-#ShowPath(v, cl, h, hcl )
-
+gfile.close()
 
