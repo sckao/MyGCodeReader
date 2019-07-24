@@ -11,15 +11,16 @@ class GetQuiverObject:
     objY = 0.
     dr = 999999999.
     idx = -1
+    IO = None
 
     key_val = ''
 
-    def __init__(self, axes, objlist, colorV ):
+    def __init__(self, axes, objlist, gfile ):
         self.ax = axes
         self.objV = objlist
-        self.colV = colorV
         self.press = None
         self.viewbounds = self.ax.viewLim.bounds
+        self.IO = gfile
         #self.ax.set_autoscale_on( False )
 
     def objMatch(self, mx, my):
@@ -57,16 +58,17 @@ class GetQuiverObject:
     def key_release(self, event):
 
         self.key_val = ''
+        self.press = None
 
     def on_press(self, event):
         #if event.inaxes != self.ax.axes: return
-
-        mx = event.xdata
-        my = event.ydata
-        #if self.key_val == 'control' :
-        self.objMatch(mx, my)
-        self.viewbounds = self.ax.viewLim.bounds
-        print( ' - View Limit Bound : ', self.viewbounds  )
+        if self.key_val == 'control' :
+            mx = event.xdata
+            my = event.ydata
+            #if self.key_val == 'control' :
+            self.objMatch(mx, my)
+            self.viewbounds = self.ax.viewLim.bounds
+            print( ' - View Limit Bound : ', self.viewbounds  )
 
 
 
@@ -80,6 +82,8 @@ class GetQuiverObject:
                     + ' in list {:.3f}'.format( self.objV[self.idx][0] ) + '. {:.3f}'.format( self.objV[self.idx][1] ) )
 
             # Update position to current mouse position
+            self.IO.write( '; %d, %.3f, %.3f, %.3f, %.4f,  %.3f, %.3f \n'
+                           %(self.idx, self.objV[self.idx][0], self.objV[self.idx][1],  self.objV[self.idx][2], self.objV[self.idx][3],mx, my))
             self.objV[self.idx][0] = mx
             self.objV[self.idx][1] = my
             print('>{:3d}'.format(self.idx) + ') new points:{:.3f}'.format(self.objV[self.idx][0] ) + ', {:.3f}'.format(self.objV[self.idx][1])  )
@@ -91,7 +95,7 @@ class GetQuiverObject:
             plt.xlim([self.viewbounds[0], self.viewbounds[0] + self.viewbounds[2]])
             plt.ylim([self.viewbounds[1], self.viewbounds[1] + self.viewbounds[3]])
             plt.grid(b=True, which='major')
-            SetQuiver( self.ax, self.objV, self.colV, self.objV[0][0], self.objV[0][1] )
+            SetQuiver( self.ax, self.objV, self.objV[0][0], self.objV[0][1] )
             self.ax.figure.canvas.draw()
         elif self.key_val == '' :
             self.viewbounds = self.ax.viewLim.bounds
@@ -107,6 +111,7 @@ class GetQuiverObject:
 
         self.press = None
         self.ax.cla()
+        # Re-Draw plots
         self.ax.set_xlabel('x')
         self.ax.set_ylabel('y')
         plt.xlim([self.viewbounds[0], self.viewbounds[0] + self.viewbounds[2]])
@@ -114,7 +119,7 @@ class GetQuiverObject:
         #plt.xlim([-10, 290])
         #plt.ylim([-10, 290])
         plt.grid(b=True, which='major')
-        SetQuiver( self.ax, self.objV, self.colV, self.objV[0][0], self.objV[0][1] )
+        SetQuiver( self.ax, self.objV, self.objV[0][0], self.objV[0][1] )
         self.ax.figure.canvas.draw()
 
     def objPick(self):
@@ -131,32 +136,47 @@ def vMag( vec ):
     len =  math.sqrt( (vec[0]*vec[0]) + (vec[1]*vec[1]) )
     return len
 
-def SetQuiver( ax, gV, colorV, X0 = 0. , Y0 = 0. ) :
+def SetQuiver( ax, gV,  X0 = 0. , Y0 = 0. ) :
 
     # adding vectors
-    #X = gV[0][0]
-    #Y = gV[0][1]
     X = X0
     Y = Y0
-    j = 0
+    sX = []
+    sY = []
+    sC = []
+    rX = []
+    rY = []
+    rC = []
     for i in gV :
-        dX = i[0] - X
-        dY = i[1] - Y
-        #print(" i= " + str(i) + "( " + str( i[0]) + ", " + str(i[1]) + ")" )
-        ax.quiver( X, Y, dX, dY, angles='xy', scale_units='xy',scale=1, color= colorV[j], picker=5 )
+        if  i[5] <= 3  :
+            dX = i[0] - X
+            dY = i[1] - Y
+            #print(" i= " + str(i) + "( " + str( i[0]) + ", " + str(i[1]) + ")" )
+            ax.quiver( X, Y, dX, dY, angles='xy', scale_units='xy',scale=1, color= i[4], picker=5 )
 
-        X += dX
-        Y += dY
-        j += 1
+            X += dX
+            Y += dY
+        if i[5] == 4 :
+            if i[2] == 'orange' :
+                sX.append( i[0] )
+                sY.append( i[1] )
+                sC.append( 'orange' )
+            else :
+                rX.append( i[0] )
+                rY.append( i[1] )
+                rC.append( 'black' )
+
+    # adding retract points
+    ax.scatter( sX, sY,s=60, marker= '^', facecolors='none', edgecolors=sC )
+    ax.scatter( rX, rY,s=50, marker= 'o', facecolors='none', edgecolors=rC )
 
 
 
-# gV is the positions of every X-Y movement
-# hV is the positions of every Z movement
-def ShowPath( gV, colorV, hV, hCol ):
+# gV contains the positions of every X-Y movement, color code and moveType
+def ShowPath( gV, gfile ):
 
     # setup cavas
-    fig = plt.figure()
+    fig = plt.figure( figsize=(8,8) )
     fig.suptitle( 'G Code Path', fontsize=10, fontweight='bold')
 
     # one sub plot (x,y,index)
@@ -164,39 +184,19 @@ def ShowPath( gV, colorV, hV, hCol ):
     ax.set_xlabel('x')
     ax.set_ylabel('y')
 
-    plt.xlim([-10, 290])
-    plt.ylim([-10, 290])
+    # Plot XY limit and grid
+    plt.xlim([-5, 295])
+    plt.ylim([-5, 295])
     plt.grid(b=True, which='major')
 
-    # X Y and color code for every Z movement
-    sX = []
-    sY = []
-    sC = []
-    rX = []
-    rY = []
-    rC = []
-    for i in range( len(hV) ):
-        if  hCol[i] == 'red' :
-            sX.append( hV[i][0] )
-            sY.append( hV[i][1] )
-            sC.append( 'red' )
-        else :
-            rX.append( hV[i][0] )
-            rY.append( hV[i][1] )
-            rC.append( 'black' )
-
     # Setup call-back function
-    qObj = GetQuiverObject( ax, gV, colorV )
+    qObj = GetQuiverObject( ax, gV, gfile )
     qObj.objPick()
 
     bounds = ax.viewLim.bounds
     print( ' View Limit Bound : ', bounds  )
 
-    # adding retract points
-    plt.scatter( sX, sY,s=20, c=sC, marker= '^')
-    plt.scatter( rX, rY,s=20, c=rC, marker= 'o')
-
-    SetQuiver( ax, gV, colorV )
+    SetQuiver( ax, gV, gV[0][0], gV[0][1]  )
 
     plt.show()
 

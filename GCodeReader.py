@@ -1,9 +1,7 @@
 import numpy as np
 import math
-import os
 from GCodePaser import GWords
 from GCodeViewer import ShowPath, vMag
-
 
 def makeV( p1, p2 ):
 
@@ -52,27 +50,29 @@ def SaveNewGCode( gfile, gword ):
             gfile.write( cmd + ' X%.3f Y%.3f Z%.3f E%.4f\n' %(gword.xVal, gword.yVal, gword.zVal, gword.eVal) )
 
 
+##############################################
+#           Main : Start Reading             #
+##############################################
 
-# Read files and out put GCode results
+# Read files and output GCode results
 fname    = input('Read filename : ')
+
 foutname = input('Write filename : ')
 if foutname == '' :
     foutname = 'out.txt'
-gfilename = input('Output GCode filename : ')
-if gfilename != '' :
-    gfile = open( gfilename, 'w' )
 
+gfilename = input('Output GCode filename : ')
+if gfilename == '' :
+    gfilename = 'gout.gcode'
 
 f = open(fname, 'r+')
 fout = open( foutname, 'w')
+gfile = open( gfilename, 'w' )
 
 fout.write( ' id,  X,  Y,  Z,  dr,  rho,  E,  sumL \n' )
 
 # position and color list for drawing plots
 v = []
-h = []
-cl = []
-hcl = []
 
 i = 0
 z0 = 0.
@@ -107,15 +107,14 @@ for line in f:
     if cmd == 'G28':
         print(' Home - Initialized ' + cmd +' \n')
 
-    #if line[0:7] == '; layer':
-    #    print(' NEXT Layer !!!\n')
-
+    # if one of x,y,z moved
     if  gd.posUpdated() :
 
-        # Record each position
-        v.append( [gd.xVal, gd.yVal] )
+        # Record each position and motion type with its color code
+        v.append( [gd.xVal, gd.yVal, gd.zVal, gd.eVal, gd.color, gd.moveType ] )
         dz =  gd.zVal - z0
 
+        # Identify layer change
         if dz == 0. and gd.eVal > 0. and zL != gd.zVal :
             zL = gd.zVal
             print('Change Layer Height ={:.3f} \n'.format(zL))
@@ -137,18 +136,8 @@ for line in f:
                 rho = 0.
 
 
-        # Color different movement
-        if cmd == 'G0':
-            cl.append( 'red' )
-        elif cmd =='G1' and gd.eVal <= 0 :
-            cl.append( 'green' )
-        else :
-            cl.append( 'blue' )
-
         # Record Z movement
         if gd.update[2] != 0 :
-            h.append( [ gd.xVal, gd.yVal ] )
-            hcl.append( 'red' )
             z0 = gd.zVal
             #print(' move Z = {:.3f} '.format(dz) + ' Z = {:.3f}'.format(gd.zVal) + ' dr = {:.3f}'.format(dr) + ' E = {:.3f}'.format(gd.eVal) )
             # Reset dL if z is changed
@@ -157,35 +146,28 @@ for line in f:
         # output            x, y, z, dr, rho, E, dL
         if i == 0 :
             fout.write( '; Change Layer Height ={:.3f} \n'.format(zL) )
+            gfile.write('; Layer Changed = {:.3f} \n'.format(zL) )
 
         fout.write( '{:5d}'.format(i) +', {:.3f}'.format(v[i][0]) + ', {:.3f}'.format(v[i][1]) + ', {:.3f}'.format(gd.zVal) +', {:.3f}'.format(dr) + ', {:.3f}'.format(rho) + ', {:.4f}'.format(gd.eVal)+ ', {:.3f}'.format(dL) + '\n' )
         #fout.write( '{:.3f}'.format(gd.xVal) + ',{:.3f}'.format(gd.yVal) + ', {:.3f}'.format(gd.zVal) + ', {:.4f}'.format(gd.eVal)+ ',{:.4f}'.format(gd.fVal) + '\n' )
-        # Save New GCode
-        SaveNewGCode( gfile, gd)
 
         # E value < 0, Z movement only
         if gd.retract  and gd.update[2] != 0 :
             print(' Retract ' + ' x= {:.3f}'.format(gd.xVal) + ' y= {:.3f}'.format( gd.yVal ) + ' z= {:.3f}'.format( gd.zVal ) +  ' e= {:.3f}'.format(gd.eVal) )
-            h.append( [ gd.xVal, gd.yVal] )
-            hcl.append( 'black' )
 
         i = i+1
 
+    if Flush :
+
+        print('This layer has %d vector ' %( len(v) ) )
+        ShowPath( v, gfile )
+        v = []
+        i = 0
+        Flush = False
 
     if cmd == 'M84':
         Flush = True
         fout.write('{:.3f}'.format(totalL) + '\n' )
-
-    if Flush :
-
-        print('This layer has %d vector and %d Z movement ' %(len(v), len(h)) )
-        ShowPath(v, cl, h, hcl )
-        v = []
-        cl = []
-        h = []
-        hcl = []
-        i = 0
-        Flush = False
 
 
 f.close()

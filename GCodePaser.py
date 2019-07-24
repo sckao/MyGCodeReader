@@ -6,11 +6,13 @@ class GWords :
     zVal = 0
     eVal = 0
     fVal = 0
+    moveType = 0
     gWords = []
     isG0G1 = False
     retract = False
     command = ''
     para = ''
+    color = ''
     update = [0,0,0,0,0] # [x,y,z,e,f]
 
     def __init__(self):
@@ -32,24 +34,38 @@ class GWords :
 
             for ig in self.gWords :
                 if ig[0] == 'X':
-                    self.xVal = float(ig[1:])
-                    self.update[0] = 1
+                    if float(ig[1:]) != self.xVal :
+                        self.xVal = float(ig[1:])
+                        self.update[0] = 1
                 if ig[0] == 'Y':
-                    self.yVal = float(ig[1:])
-                    self.update[1] = 1
+                    if float(ig[1:]) != self.yVal :
+                        self.yVal = float(ig[1:])
+                        self.update[1] = 1
                 if ig[0] == 'Z':
-                    self.zVal = float(ig[1:])
-                    self.update[2] = 1
+                    if float(ig[1:]) != self.zVal :
+                        self.zVal = float(ig[1:])
+                        self.update[2] = 1
                 if ig[0] == 'E':
-                    self.eVal = float(ig[1:])
-                    self.update[3] = 1
+                    if float(ig[1:]) != self.eVal :
+                        self.eVal = float(ig[1:])
+                        self.update[3] = 1
+
                     if float(self.eVal) < 0. :
                         self.retract = True
                     else:
                         self.retract = False
+
                 if ig[0] == 'F':
                     self.fVal = float(ig[1:]) / 60.
                     self.update[4] = 1
+
+            # Move Type is only defined by  first 3 bits (x,y,z)
+            out = 0
+            for bit in reversed(self.update) :
+                out = ( out << 1 ) | bit
+
+            self.moveType = out & 7
+            self.GetColor()
 
     def getCommand(self):
 
@@ -70,3 +86,22 @@ class GWords :
             move = True
 
         return move
+
+    def GetColor(self):
+
+        if self.command == 'G0' and self.moveType <= 3 :
+            self.color = 'red'
+        elif self.command =='G1' and self.eVal <= 0 and self.moveType <= 3 :
+            self.color = 'green'
+        elif self.command == 'G1' and self.eVal > 0 and self.moveType <= 3 :
+            self.color = 'blue'
+
+        if self.moveType >= 4 :
+            if self.retract :
+                self.color = 'black'
+            else :
+                self.color = 'orange'
+
+
+
+
