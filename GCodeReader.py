@@ -69,7 +69,7 @@ f = open(fname, 'r+')
 fout = open( foutname, 'w')
 gfile = open( gfilename, 'w' )
 
-fout.write( ' id,  X,  Y,  Z,  dr,  rho,  E,  sumL \n' )
+fout.write( '  id,    X,    Y,    Z,   dr,   rho,   E,   sumL \n' )
 
 # position and color list for drawing plots
 v = []
@@ -120,6 +120,21 @@ for line in f:
             print('Change Layer Height ={:.3f} \n'.format(zL))
             Flush = True
 
+        # Record Z movement
+        if gd.update[2] != 0 :
+            z0 = gd.zVal
+            #print(' move Z = {:.3f} '.format(dz) + ' Z = {:.3f}'.format(gd.zVal) + ' dr = {:.3f}'.format(dr) + ' E = {:.3f}'.format(gd.eVal) )
+            # Reset dL if z is changed
+            dL = 0.
+
+        # Identify retraction - E value < 0 + with Z movement
+        if gd.retract  and gd.update[2] != 0 :
+            if dz > 0. :
+                fout.write( '; Retract Start \n' )
+            if dz < 0. :
+                fout.write( '; Retract End \n' )
+            print(' Retract ' + ' x= {:.3f}'.format(gd.xVal) + ' y= {:.3f}'.format( gd.yVal ) + ' z= {:.3f}'.format( gd.zVal ) +  ' e= {:.3f}'.format(gd.eVal) )
+
 
         # Sum over all movement
         if i > 0 :
@@ -136,13 +151,6 @@ for line in f:
                 rho = 0.
 
 
-        # Record Z movement
-        if gd.update[2] != 0 :
-            z0 = gd.zVal
-            #print(' move Z = {:.3f} '.format(dz) + ' Z = {:.3f}'.format(gd.zVal) + ' dr = {:.3f}'.format(dr) + ' E = {:.3f}'.format(gd.eVal) )
-            # Reset dL if z is changed
-            dL = 0.
-
         # output            x, y, z, dr, rho, E, dL
         if i == 0 :
             fout.write( '; Change Layer Height ={:.3f} \n'.format(zL) )
@@ -151,14 +159,9 @@ for line in f:
         fout.write( '{:5d}'.format(i) +', {:.3f}'.format(v[i][0]) + ', {:.3f}'.format(v[i][1]) + ', {:.3f}'.format(gd.zVal) +', {:.3f}'.format(dr) + ', {:.3f}'.format(rho) + ', {:.4f}'.format(gd.eVal)+ ', {:.3f}'.format(dL) + '\n' )
         #fout.write( '{:.3f}'.format(gd.xVal) + ',{:.3f}'.format(gd.yVal) + ', {:.3f}'.format(gd.zVal) + ', {:.4f}'.format(gd.eVal)+ ',{:.4f}'.format(gd.fVal) + '\n' )
 
-        # E value < 0, Z movement only
-        if gd.retract  and gd.update[2] != 0 :
-            print(' Retract ' + ' x= {:.3f}'.format(gd.xVal) + ' y= {:.3f}'.format( gd.yVal ) + ' z= {:.3f}'.format( gd.zVal ) +  ' e= {:.3f}'.format(gd.eVal) )
-
         i = i+1
 
     if Flush :
-
         print('This layer has %d vector ' %( len(v) ) )
         ShowPath( v, gfile )
         v = []
