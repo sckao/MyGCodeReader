@@ -2,6 +2,8 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 
+from GCodeGenerator import GCodeGenerator
+
 class Polygrams:
 
     # number of legs/sides
@@ -24,6 +26,11 @@ class Polygrams:
     # Routing path
     u=[]
     v=[]
+
+    # Tip speace (ts) and Bead height (bh) and first layer adjustment (fh)
+    bh = 0.9
+    ts = 0.3
+    fh = 0.1
 
     # Flow Rate
     Eval = 1.
@@ -57,6 +64,10 @@ class Polygrams:
             self.x.append( self.r*math.cos(self.theta*i + self.delta) )
             self.y.append( self.r*math.sin(self.theta*i + self.delta) )
             #print( ' (%d) Angle = %.3f , x =%.3f y =%.3f ' %( i, math.degrees(self.theta*i), self.x[i], self.y[i] ) )
+
+        if self.objType == 0 :
+            self.x.append( self.x[0] )
+            self.y.append( self.y[0] )
 
 
     # Solve n side of the polygon : y = mx + d
@@ -102,41 +113,43 @@ class Polygrams:
         print( ' Create %d-side Polygram with radius %.2f' %( n_ , r_) )
         self.SetParameters( n_, r_, delta_ )
         self.GetPolygon()
-        self.GetLine()
-        self.GetPolygram()
+        if self.objType == 1 :
+            self.GetLine()
+            self.GetPolygram()
 
-    # rS status ->  2 : print , 1: move only , 0: retract,
+    # status is given by the way(G0 or G1 or retract)  to the point
+    # rS status ->  0 : print , 1: move only , 2: retract,
     # This function is only used after Create
-    def GetResult(self, rS = [], rx = [], ry = [], rz = [], zVal = 0., rE = [] ):
+    def GetPolygramResult(self, rS = [], rx = [], ry = [], rz = [], zVal = 0., rE = [] ):
 
         eVal = 0
         for i in range( len(self.u) ):
 
             if i == 0:
-                eVal = 0
+                eVal = -1.
 
                 if len(rx) > 0:
                     rx.append( rx[ len(rx) -1 ] )
                     ry.append( ry[ len(ry) -1 ] )
                     rz.append( zVal + 2 )
                     rE.append( eVal )
-                    rS.append( 0 )
+                    rS.append( 2 )
                     rx.append(self.u[i])
                     ry.append(self.v[i])
                     rz.append( zVal + 2 )
                     rE.append( eVal )
-                    rS.append( 1 )
+                    rS.append( 0 )
                     rx.append(self.u[i])
                     ry.append(self.v[i])
                     rz.append( zVal )
                     rE.append( eVal )
-                    rS.append( 0 )
+                    rS.append( 2 )
                 else :
                     rx.append(self.u[i])
                     ry.append(self.v[i])
                     rz.append( zVal )
                     rE.append( eVal )
-                    rS.append( 1 )
+                    rS.append( 0 )
 
 
             else :
@@ -151,9 +164,69 @@ class Polygrams:
                 ry.append(self.v[i])
                 rz.append( zVal )
                 rE.append( eVal )
-                rS.append( 2 )
+                rS.append( 1 )
+
+    def GetPolygonResult(self, rS = [], rx = [], ry = [], rz = [], zVal = 0., rE = [] ):
+
+        eVal = 0
+        for i in range( len(self.x) ):
+
+            if i == 0:
+                eVal = -1.
+
+                if len(rx) > 0:
+                    rx.append( rx[ len(rx) -1 ] )
+                    ry.append( ry[ len(ry) -1 ] )
+                    rz.append( zVal + 2 )
+                    rE.append( eVal )
+                    rS.append( 2 )
+                    rx.append(self.x[i])
+                    ry.append(self.y[i])
+                    rz.append( zVal + 2 )
+                    rE.append( eVal )
+                    rS.append( 0 )
+                    rx.append(self.x[i])
+                    ry.append(self.y[i])
+                    rz.append( zVal )
+                    rE.append( eVal )
+                    rS.append( 2 )
+                else :
+                    rx.append(self.x[i])
+                    ry.append(self.y[i])
+                    rz.append( zVal )
+                    rE.append( eVal )
+                    rS.append( 0 )
+
+
+            else :
+
+                dx = self.x[i] - self.x[i-1]
+                dy = self.y[i] - self.y[i-1]
+                dl = math.sqrt( (dx*dx) + (dy*dy) )
+                dt = dl / self.Fval
+                eVal = self.Eval * dt
+
+                rx.append(self.x[i])
+                ry.append(self.y[i])
+                rz.append( zVal )
+                rE.append( eVal )
+                rS.append( 1 )
+
+    def GetResult(self, rs = [], rx = [], ry = [], rz = [], zVal = 0., rE = [] ):
+
+        if self.objType == 0 :
+            self.GetPolygonResult( rs, rx, ry, rz, zVal, rE )
+        elif self.objType == 1 :
+            self.GetPolygramResult( rs, rx, ry, rz, zVal, rE )
+        else :
+            self.GetPolygramResult( rs, rx, ry, rz, zVal, rE )
+
 
     def Configure(self):
+
+        self.objType   = input('Polygon (0) or Polygram(1) : ')
+        if self.objType   == '':  self.objType = 1
+        else :         self.objType = int(self.objType)
 
         self.n   = input('Number of Sides (5): ')
         if self.n   == '':  self.n = 5
@@ -173,9 +246,10 @@ class Polygrams:
         self.delta = input(' Delta angle :')
         if self.delta == '' :  self.delta = -1*math.pi/2
         else :        self.delta  = float( self.delta )
+        self.Fval  = input(' Stage Velocity :')
+        if self.Fval == '' :  self.Fval = 4800
+        else :        self.Fval  = float( self.Fval )
 
-        # Bead Height
-        self.bh = 1.0
 
         self.nStep = int( abs(self.r1 - self.r2)/self.bw )
         self.nLayer = int( self.h / self.bh )
@@ -215,14 +289,16 @@ class Polygrams:
         stagger = 0.5*self.bw
 
         # Z level
-        zVal = 0.
+        zVal = self.bh + self.ts + self.fh
 
         # Starting angle
         da_ = self.delta
         for i in range( self.nLayer ):
             print(' Print Level %d' %(i))
-            if i%2 == 1 :
-                r = r0 + stagger*pow(-1,i)
+            if dr > 0  and i%2 == 1 :
+                r = r0 + stagger
+            elif dr < 0  and i%2 == 1 :
+                r = r0 - stagger
             else :
                 r = r0
 
@@ -231,9 +307,26 @@ class Polygrams:
                 self.Create( self.n, r , da_ )
                 self.GetResult(rS, rx, ry, rz, zVal, rE  )
                 r = r+ dr
+                da_ = da_ + dtheta
 
-            da_ = da_ + dtheta
             zVal = zVal + self.bh
+
+    def AddSkirt(self,rs = [], rx = [] , ry = [] , rz = [], rE = [] ) :
+
+        rSkirt = max([self.r1, self.r2]) + 10
+        print( ' == Printing Skirt %.3f==' %(rSkirt))
+
+        # Starting angle
+        da_ = self.delta
+        # initial Z position
+        zVal = self.bh + self.ts + self.fh
+
+        self.Create( self.n, rSkirt, da_ )
+        self.GetResult(rs, rx, ry, rz, zVal, rE  )
+
+
+
+
 
 rs = []
 rx = []
@@ -243,8 +336,13 @@ rE = []
 polyObj = Polygrams()
 polyObj.Configure()
 #polyObj.Construct2D(rs, rx, ry)
+polyObj.AddSkirt(rs, rx, ry, rz, rE )
 polyObj.Construct3D(rs, rx, ry, rz, rE )
 
+# Output GCode
+gc = GCodeGenerator( rs, rx, ry, rz, rE, polyObj.Fval )
+gc.Shift( 50, 50, 0 )
+gc.Generate()
 
 # setup cavas
 fig = plt.figure( figsize=(7.5,7.5) )
@@ -260,13 +358,13 @@ plt.xlim([-55, 55])
 plt.ylim([-55, 55])
 plt.grid(b=True, which='major')
 ax.scatter( polyObj.x,  polyObj.y,  s=50, marker= 'o', facecolors='none', edgecolors='red' )
-ax.scatter( polyObj.xt, polyObj.yt, s=50, marker= '^', facecolors='none', edgecolors='blue' )
+#ax.scatter( polyObj.xt, polyObj.yt, s=50, marker= '^', facecolors='none', edgecolors='blue' )
 
 # Start Routing (x,y) -> (xt,yt) -> (x,y)
+print( ' total point %d ' %( len(rx)) )
 x_ = rx[0]
 y_ = ry[0]
 nPoint = len( rx )
-print( ' total point %d ' %( len(rx)) )
 n = polyObj.n
 for i in range( nPoint -1 ) :
     dX = rx[i+1] - x_
@@ -275,9 +373,9 @@ for i in range( nPoint -1 ) :
     if i == 0 :
         ax.quiver(x_, y_, dX, dY, angles='xy', scale_units='xy', scale=1, color='green', picker=5)
     #elif (i%(n*2+1) ) == (n*2):
-    elif rs[i+1] == 1:
+    elif rs[i+1] == 0:
         ax.quiver(x_, y_, dX, dY, angles='xy', scale_units='xy', scale=1, color='red', picker=5)
-    elif rs[i+1] == 2 :
+    elif rs[i+1] == 1 :
         ax.quiver(x_, y_, dX, dY, angles='xy', scale_units='xy', scale=1, color='purple', picker=5)
     else :
         continue
