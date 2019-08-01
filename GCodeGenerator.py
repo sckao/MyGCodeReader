@@ -45,17 +45,19 @@ class GCodeGenerator :
             fVal = self.F*self.sF
 
             if i == 0 :
-                gfile.write('M82\n')       # Absolute extrusion mode
-                gfile.write('G28\n')       # Home
-                gfile.write('G1 Z15.0\n')  # Z go down 15 mm
-                gfile.write('G92 E0\n')    # Set position ( X0 Y0 Z15 )
-                gfile.write('M82\n')
+                gfile.write('G90\n')
+                gfile.write('M83\n')
+                gfile.write('M106 S0\n')
+                gfile.write('G28\n')
+                gfile.write('T0\n')
+                gfile.write('G1 Z15.0\n')
+                gfile.write( 'G0 X%.3f Y%.3f F%.0f\n' %( xVal, yVal, fVal ) )
 
             if self.rs[i] == 1 :
-                gfile.write( 'G0 X%.3f Y%.3f Z%.3f E%.4f F%.0f\n' %( xVal, yVal, zVal, eVal, fVal ) )
+                gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%.0f\n' %( xVal, yVal, zVal, eVal, fVal ) )
 
             if self.rs[i] == 0 :
-                gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f\n' %( xVal, yVal, zVal, eVal  ) )
+                gfile.write( 'G0 X%.3f Y%.3f Z%.3f E%.4f\n' %( xVal, yVal, zVal, eVal  ) )
 
             if self.rs[i] == 2 :
                 gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f\n' %( xVal, yVal, zVal, eVal ) )

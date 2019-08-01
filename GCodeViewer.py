@@ -147,8 +147,11 @@ def SetQuiver( ax, gV,  X0 = 0. , Y0 = 0. ) :
     rX = []
     rY = []
     rC = []
+    j = 0
     for i in gV :
-        if  i[5] <= 3  :
+        # XYZ movement
+        if  i[5] <= 3 and j != len(gV)-1  :
+
             dX = i[0] - X
             dY = i[1] - Y
             #print(" i= " + str(i) + "( " + str( i[0]) + ", " + str(i[1]) + ")" )
@@ -156,6 +159,7 @@ def SetQuiver( ax, gV,  X0 = 0. , Y0 = 0. ) :
 
             X += dX
             Y += dY
+        # Z only movement
         if i[5] == 4 :
             if i[2] == 'orange' :
                 sX.append( i[0] )
@@ -165,6 +169,8 @@ def SetQuiver( ax, gV,  X0 = 0. , Y0 = 0. ) :
                 rX.append( i[0] )
                 rY.append( i[1] )
                 rC.append( 'black' )
+
+        j = j+1
 
     # adding retract points
     ax.scatter( sX, sY,s=60, marker= '^', facecolors='none', edgecolors=sC )

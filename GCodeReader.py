@@ -106,6 +106,7 @@ for line in f:
 
     if cmd == 'G28':
         print(' Home - Initialized ' + cmd +' \n')
+        v.append( [ 0, 0, 0, 0, 'black', 0 ] )
 
     # if one of x,y,z moved
     if  gd.posUpdated() :
@@ -126,14 +127,12 @@ for line in f:
             #print(' move Z = {:.3f} '.format(dz) + ' Z = {:.3f}'.format(gd.zVal) + ' dr = {:.3f}'.format(dr) + ' E = {:.3f}'.format(gd.eVal) )
             # Reset dL if z is changed
             dL = 0.
-
-        # Identify retraction - E value < 0 + with Z movement
-        if gd.retract  and gd.update[2] != 0 :
-            if dz > 0. :
+            # Identify retraction - E value < 0 + with Z movement
+            if gd.retract and dz > 0 :
                 fout.write( '; Retract Start \n' )
-            if dz < 0. :
+            if gd.retract and dz < 0. :
                 fout.write( '; Retract End \n' )
-            print(' Retract ' + ' x= {:.3f}'.format(gd.xVal) + ' y= {:.3f}'.format( gd.yVal ) + ' z= {:.3f}'.format( gd.zVal ) +  ' e= {:.3f}'.format(gd.eVal) )
+                print(' Retract ' + ' x= {:.3f}'.format(gd.xVal) + ' y= {:.3f}'.format( gd.yVal ) + ' z= {:.3f}'.format( gd.zVal ) +  ' e= {:.3f}'.format(gd.eVal) )
 
 
         # Sum over all movement
@@ -164,12 +163,20 @@ for line in f:
     if Flush :
         print('This layer has %d vector ' %( len(v) ) )
         ShowPath( v, gfile )
+        # The last element belong to next layer, so keep it and show it in the next layer
+        vlast = v[-1]
+        vlast2 = v[-2]
+        print(' Last element %.3f %.3f %.3f %.4f' %(vlast[0], vlast[1], vlast[2], vlast[3] ))
         v = []
+        v.append( vlast2 )
+        v.append( vlast )
         i = 0
         Flush = False
 
     if cmd == 'M84':
         Flush = True
+        print('This layer has %d vector ' %( len(v) ) )
+        ShowPath( v, gfile )
         fout.write('{:.3f}'.format(totalL) + '\n' )
 
 

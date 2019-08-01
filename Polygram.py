@@ -28,20 +28,21 @@ class Polygrams:
     v=[]
 
     # Tip speace (ts) and Bead height (bh) and first layer adjustment (fh)
-    bh = 0.9
-    ts = 0.3
+    bh = 0.5
+    ts = 0.35
     fh = 0.1
 
-    # Flow Rate
-    Eval = 1.
+    # Linear density ( or Flow rate )
+    rho = 0.5
     Fval = 4000.
+    Eval = Fval*rho
 
     def __init__(self, n_ = 5 ,  r_ = 10 ):
         self.n = int(n_)
         self.r = float(r_)
         self.delta = -1.*math.pi / 2
         self.theta = 2.*math.pi / self.n
-        self.rho = self.Eval*60 / self.Fval
+        self.Eval = self.rho * self.Fval
 
     def SetParameters(self, n_, r_, delta_  = -1.*math.pi /2 ):
         self.n = int(n_)
@@ -118,7 +119,7 @@ class Polygrams:
             self.GetPolygram()
 
     # status is given by the way(G0 or G1 or retract)  to the point
-    # rS status ->  0 : print , 1: move only , 2: retract,
+    # rS status ->  1 : print , 0: move only , 2: retract,
     # This function is only used after Create
     def GetPolygramResult(self, rS = [], rx = [], ry = [], rz = [], zVal = 0., rE = [] ):
 
@@ -240,19 +241,22 @@ class Polygrams:
         self.bw     = input('Bead width (0.5): ')
         if self.bw  == '':  self.bw = 0.5
         else :         self.bw = float(self.bw)
-        self.h      = input('Height (1): ')
-        if self.h  == '':  self.h = 1.0
-        else :        self.h = float( self.h )
+        self.nLayer    = input('Number of Layer (1): ')
+        if self.nLayer  == '':  self.nLayer = 1
+        else :        self.nLayer = int( self.nLayer )
         self.delta = input(' Delta angle :')
         if self.delta == '' :  self.delta = -1*math.pi/2
         else :        self.delta  = float( self.delta )
-        self.Fval  = input(' Stage Velocity :')
+        self.rho  = input(' Flow Rate (1.0) :')
+        if self.rho == '' :  self.rho = 1.
+        else :        self.rho  = float( self.rho )
+        self.Fval  = input(' Stage Velocity (4800) :')
         if self.Fval == '' :  self.Fval = 4800
         else :        self.Fval  = float( self.Fval )
 
-
+        self.Eval = self.rho * self.Fval
         self.nStep = int( abs(self.r1 - self.r2)/self.bw )
-        self.nLayer = int( self.h / self.bh )
+        print(" FlowRate %.3f Speed %.3f Extrude %.3f " %(self.rho, self.Fval, self.Eval ))
 
     def Construct2D(self, rs= [], rx= [], ry= [] ):
 
@@ -286,7 +290,8 @@ class Polygrams:
             r = self.r1 - (self.bw/2)
             dr = -1*self.bw
         r0 = r
-        stagger = 0.5*self.bw
+        #stagger = 0.5*self.bw
+        stagger = 0
 
         # Z level
         zVal = self.bh + self.ts + self.fh
@@ -341,7 +346,7 @@ polyObj.Construct3D(rs, rx, ry, rz, rE )
 
 # Output GCode
 gc = GCodeGenerator( rs, rx, ry, rz, rE, polyObj.Fval )
-gc.Shift( 50, 50, 0 )
+gc.Shift( 150, 150, 0 )
 gc.Generate()
 
 # setup cavas
