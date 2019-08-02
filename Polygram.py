@@ -121,7 +121,7 @@ class Polygrams:
     # status is given by the way(G0 or G1 or retract)  to the point
     # rS status ->  1 : print , 0: move only , 2: retract,
     # This function is only used after Create
-    def GetPolygramResult(self, rS = [], rx = [], ry = [], rz = [], zVal = 0., rE = [] ):
+    def GetPolygramResult(self, rS = [], rx = [], ry = [], rz = [], zVal = 0., rE = [], retract = False ):
 
         eVal = 0
         for i in range( len(self.u) ):
@@ -129,7 +129,7 @@ class Polygrams:
             if i == 0:
                 eVal = -1.
 
-                if len(rx) > 0:
+                if len(rx) > 0 and retract :
                     rx.append( rx[ len(rx) -1 ] )
                     ry.append( ry[ len(ry) -1 ] )
                     rz.append( zVal + 2 )
@@ -143,13 +143,13 @@ class Polygrams:
                     rx.append(self.u[i])
                     ry.append(self.v[i])
                     rz.append( zVal )
-                    rE.append( eVal )
+                    rE.append( 0.0 )
                     rS.append( 2 )
                 else :
                     rx.append(self.u[i])
                     ry.append(self.v[i])
                     rz.append( zVal )
-                    rE.append( eVal )
+                    rE.append( 0.0 )
                     rS.append( 0 )
 
 
@@ -167,7 +167,7 @@ class Polygrams:
                 rE.append( eVal )
                 rS.append( 1 )
 
-    def GetPolygonResult(self, rS = [], rx = [], ry = [], rz = [], zVal = 0., rE = [] ):
+    def GetPolygonResult(self, rS = [], rx = [], ry = [], rz = [], zVal = 0., rE = [], retract = False ):
 
         eVal = 0
         for i in range( len(self.x) ):
@@ -175,7 +175,7 @@ class Polygrams:
             if i == 0:
                 eVal = -1.
 
-                if len(rx) > 0:
+                if len(rx) > 0 and retract :
                     rx.append( rx[ len(rx) -1 ] )
                     ry.append( ry[ len(ry) -1 ] )
                     rz.append( zVal + 2 )
@@ -189,13 +189,13 @@ class Polygrams:
                     rx.append(self.x[i])
                     ry.append(self.y[i])
                     rz.append( zVal )
-                    rE.append( eVal )
+                    rE.append( 0.0 )
                     rS.append( 2 )
                 else :
                     rx.append(self.x[i])
                     ry.append(self.y[i])
                     rz.append( zVal )
-                    rE.append( eVal )
+                    rE.append( 0.0 )
                     rS.append( 0 )
 
 
@@ -213,14 +213,14 @@ class Polygrams:
                 rE.append( eVal )
                 rS.append( 1 )
 
-    def GetResult(self, rs = [], rx = [], ry = [], rz = [], zVal = 0., rE = [] ):
+    def GetResult(self, rs = [], rx = [], ry = [], rz = [], zVal = 0., rE = [], retract = False ):
 
         if self.objType == 0 :
-            self.GetPolygonResult( rs, rx, ry, rz, zVal, rE )
+            self.GetPolygonResult( rs, rx, ry, rz, zVal, rE, retract )
         elif self.objType == 1 :
-            self.GetPolygramResult( rs, rx, ry, rz, zVal, rE )
+            self.GetPolygramResult( rs, rx, ry, rz, zVal, rE, retract )
         else :
-            self.GetPolygramResult( rs, rx, ry, rz, zVal, rE )
+            self.GetPolygramResult( rs, rx, ry, rz, zVal, rE, retract )
 
 
     def Configure(self):
@@ -309,11 +309,40 @@ class Polygrams:
 
             for j in range( self.nStep ):
                 print( ' == r = %.3f == \n' %(r))
+                if j == 0 :
+                    retract = True
+                else :
+                    retract = False
+                self.Create( self.n, r , da_ )
+                self.GetResult(rS, rx, ry, rz, zVal, rE, retract   )
+                r = r+ dr
+
+            '''
+            hNS = 0
+            if self.nStep%2 == 0 :
+                hNS = int( self.nStep /2 )
+            if self.nStep%2 == 1 :
+                hNS = int( self.nStep /2) + 1
+            print( 'Number of step : %d' %(hNS) )
+
+            for j in range( hNS ):
+                r = r0 + (j*dr)
+                print( ' ==(%d) r1 = %.3f == \n' %(j, r))
                 self.Create( self.n, r , da_ )
                 self.GetResult(rS, rx, ry, rz, zVal, rE  )
-                r = r+ dr
-                da_ = da_ + dtheta
 
+                k = self.nStep - 1 - j
+                if k == j :
+                    continue
+                else :
+                    r = r0 + (k*dr)
+                    print( ' ==(%d) r2 = %.3f == \n' %(k, r))
+                    self.Create( self.n, r , da_ )
+                    self.GetResult(rS, rx, ry, rz, zVal, rE  )
+
+            '''
+
+            da_ = da_ + dtheta
             zVal = zVal + self.bh
 
     def AddSkirt(self,rs = [], rx = [] , ry = [] , rz = [], rE = [] ) :
