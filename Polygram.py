@@ -4,6 +4,33 @@ import matplotlib.pyplot as plt
 
 from GCodeGenerator import GCodeGenerator
 
+# Solve slope (m) and intercept(d) given two points (x1, y1) , (x2, y2)
+#    y = mx + d
+#  |y1| = | x1  1 | | m |
+#  |y2|   | x2  1 | | d |
+#   a = np.array([x1, 1] , [x2,1])   b = [y1, y2] , c = [m,d]
+def SolveLine( x1, y1, x2, y2 ) :
+    a = np.array( [[ x1, 1.] , [ x2, 1.]]  )
+    b = np.array( [y1, y2 ]  )
+    c = np.linalg.solve(a,b)
+
+    return c
+
+# Return acos ( 0 ~ pi )
+def dTheta( x1, y1, x2, y2, x3, y3 ) :
+
+    a = [x2-x1, y2-y1, 0.]
+    b = [x3-x2, y3-y2, 0.]
+    ab  = np.inner(a,b)
+    al = math.sqrt( (a[0]*a[0]) + (a[1]*a[1])  )
+    bl = math.sqrt( (b[0]*b[0]) + (b[1]*b[1])  )
+    cosA = ab/(al*bl)
+    angle = math.acos( cosA*0.99999 )
+    #print( ' cosA = %.3f , A = %.3f - %.3f' %(cosA, angle, angle*180/3.1415926 ) )
+
+    return angle
+
+
 class Polygrams:
 
     # number of legs/sides
@@ -72,6 +99,10 @@ class Polygrams:
 
 
     # Solve n side of the polygon : y = mx + d
+    # solve m and d given (x1, y1) , (x2, y2)
+    #  |y1| = | x1  1 | | m |
+    #  |y2|   | x2  1 | | d |
+    #   a = np.array([x1, 1] , [x2,1])   b = [y1, y2] , c = [m,d]
     def GetLine(self):
 
         for i in range( self.n ):
@@ -118,6 +149,101 @@ class Polygrams:
             self.GetLine()
             self.GetPolygram()
 
+    def Gliding(self, eRatio , rS = [], rx = [], ry = [], rz = [], rE = [] ):
+
+        # gd: Gliding distance (mm) : Def by  0.25 sec in whatever speed ( mm/sec )
+        gd1 = 0.02 * self.Fval/60.
+        gd2 = 0.02 * self.Fval/60.
+
+        eVal1 = self.Eval*0.02*eRatio
+        eVal2 = self.Eval*0.02*eRatio
+
+        skipNext = False
+        doGlide = False
+        i = 0
+        for iZ in rz :
+
+            if skipNext :
+                i=i+1
+                skipNext = False
+                continue
+
+            if i > len(rE) -3 :
+                doGlide = False
+                break
+
+            # Check the angle to see if gliding is necessary
+            angle = dTheta( rx[i], ry[i], rx[i+1], ry[i+1], rx[i+2], ry[i+2] )
+            if abs(angle) > 1.57 :
+                doGlide = True
+
+
+            if doGlide :
+                # Calculate the segment length
+                md1 = SolveLine( rx[i], ry[i], rx[i+1], ry[i+1] )
+                dx1 = rx[i+1] - rx[i]
+                dy1 = ry[i+1] - ry[i]
+                L1 = math.sqrt( (dx1*dx1) + (dy1*dy1) )
+
+                md2 = SolveLine( rx[i+1], ry[i+1], rx[i+2], ry[i+2] )
+                dx2 = rx[i+2] - rx[i+1]
+                dy2 = ry[i+2] - ry[i+1]
+                L2 = math.sqrt( (dx2*dx2) + (dy2*dy2) )
+
+                # Break the segment
+                # Slow down/turn off
+                if gd1 < L1 :
+                    # adding another point
+                    lx = dx1*gd1/L1
+                    ly = dy1*gd1/L1
+                    gx1 = rx[i+1] - lx
+                    gy1 = ry[i+1] - ly
+                    rx.insert( i+1, gx1 )
+                    ry.insert( i+1, gy1 )
+                    rz.insert( i+1, rz[i] )
+                    rE.insert( i+1, rE[i] )
+                    rS.insert( i+1, 1 )
+                    rE[i+2] = eVal1
+                    skipNext = True
+
+                    # Turn back on
+                    if gd2 < L2 :
+                        lx2 = dx2*gd2/L2
+                        ly2 = dy2*gd2/L2
+                        gx2 = rx[i+2] + lx2
+                        gy2 = ry[i+2] + ly2
+                        rx.insert( i+3, gx2 )
+                        ry.insert( i+3, gy2 )
+                        rz.insert( i+3, rz[i] )
+                        rE.insert( i+3, eVal2 )
+                        rS.insert( i+3, 1 )
+                        skipNext = True
+                    #else :
+                        rE[i+3] = rE[i+3]
+
+                else :
+                    # Turn off at next point
+                    rE[i+1] = rE[i+1]
+                    # Turn back on
+                    if gd2 < L2 :
+                        lx2 = dx2*gd2/L2
+                        ly2 = dy2*gd2/L2
+                        gx2 = rx[i+1] + lx2
+                        gy2 = ry[i+1] + ly2
+                        rx.insert( i+2, gx2 )
+                        ry.insert( i+2, gy2 )
+                        rz.insert( i+2, rz[i] )
+                        rE.insert( i+2, eVal2 )
+                        rS.insert( i+2, 1 )
+                        skipNext = True
+                    else :
+                        rE[i+2] =  rE[i+2]
+
+            doGlide = False
+            i = i+1
+
+
+
     # status is given by the way(G0 or G1 or retract)  to the point
     # rS status ->  1 : print , 0: move only , 2: retract,
     # This function is only used after Create
@@ -129,6 +255,7 @@ class Polygrams:
             if i == 0:
                 eVal = -1.
 
+                # Adding retraction
                 if len(rx) > 0 and retract :
                     rx.append( rx[ len(rx) -1 ] )
                     ry.append( ry[ len(ry) -1 ] )
@@ -198,7 +325,6 @@ class Polygrams:
                     rE.append( 0.0 )
                     rS.append( 0 )
 
-
             else :
 
                 dx = self.x[i] - self.x[i-1]
@@ -219,8 +345,10 @@ class Polygrams:
             self.GetPolygonResult( rs, rx, ry, rz, zVal, rE, retract )
         elif self.objType == 1 :
             self.GetPolygramResult( rs, rx, ry, rz, zVal, rE, retract )
+            self.Gliding( 0.0, rs, rx, ry, rz, rE)
         else :
             self.GetPolygramResult( rs, rx, ry, rz, zVal, rE, retract )
+            self.Gliding( 0.0, rs, rx, ry, rz, rE)
 
 
     def Configure(self):
@@ -357,8 +485,6 @@ class Polygrams:
 
         self.Create( self.n, rSkirt, da_ )
         self.GetResult(rs, rx, ry, rz, zVal, rE  )
-
-
 
 
 
