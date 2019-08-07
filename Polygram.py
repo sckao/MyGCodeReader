@@ -16,7 +16,7 @@ def SolveLine( x1, y1, x2, y2 ) :
 
     return c
 
-# Return acos ( 0 ~ pi )
+# Return cos ( 0 ~ pi )
 def dTheta( x1, y1, x2, y2, x3, y3 ) :
 
     a = [x2-x1, y2-y1, 0.]
@@ -24,12 +24,24 @@ def dTheta( x1, y1, x2, y2, x3, y3 ) :
     ab  = np.inner(a,b)
     al = math.sqrt( (a[0]*a[0]) + (a[1]*a[1])  )
     bl = math.sqrt( (b[0]*b[0]) + (b[1]*b[1])  )
-    cosA = ab/(al*bl)
-    angle = math.acos( cosA*0.99999 )
+
+    if al > 0. and bl > 0. :
+        cosA = ab/(al*bl)
+    else :
+        cosA = -9
+    #print(" ab: %.3f , al: %.3f  , bl: %.3f cos =  %.4f" %(ab, al, bl, cosA) )
+    return cosA
+    #angle = math.acos( cosA*0.999 )
     #print( ' cosA = %.3f , A = %.3f - %.3f' %(cosA, angle, angle*180/3.1415926 ) )
 
     return angle
 
+def dLength(x1, y1, x2, y2) :
+
+    dx = x2 - x1
+    dy = y2 - y1
+    dL = math.sqrt( (dx*dx) + (dy*dy) )
+    return dL
 
 class Polygrams:
 
@@ -60,8 +72,8 @@ class Polygrams:
     fh = 0.1
 
     # Linear density ( or Flow rate )
-    rho = 0.5
-    Fval = 4000.
+    rho = 0.75
+    Fval = 6000.
     Eval = Fval*rho
 
     def __init__(self, n_ = 5 ,  r_ = 10 ):
@@ -70,6 +82,9 @@ class Polygrams:
         self.delta = -1.*math.pi / 2
         self.theta = 2.*math.pi / self.n
         self.Eval = self.rho * self.Fval
+        self.gFval1 = self.Fval
+        self.gFval2 = self.Fval
+
 
     def SetParameters(self, n_, r_, delta_  = -1.*math.pi /2 ):
         self.n = int(n_)
@@ -149,100 +164,112 @@ class Polygrams:
             self.GetLine()
             self.GetPolygram()
 
-    def Gliding(self, eRatio , rS = [], rx = [], ry = [], rz = [], rE = [] ):
+    def SetGlideSpeed(self, fVal_1, fVal_2 ):
+        self.gFval1 = fVal_1
+        self.gFval2 = fVal_2
 
-        # gd: Gliding distance (mm) : Def by  0.25 sec in whatever speed ( mm/sec )
-        gd1 = 0.02 * self.Fval/60.
-        gd2 = 0.02 * self.Fval/60.
+    def Gliding(self, gTime1, eRatio1 , gTime2, eRatio2, rS = [], rx = [], ry = [], rz = [], rE = [] ):
 
-        eVal1 = self.Eval*0.02*eRatio
-        eVal2 = self.Eval*0.02*eRatio
+        # gd: Gliding distance (mm) : Def by  x sec in whatever speed ( mm/sec )
+        gd1 = gTime1 * self.gFval1/60.
+        gd2 = gTime2 * self.gFval2/60.
+        print(' Start Gliding rS size = %d -> %.3f , %.3f' %(len(rS) , gd1, gd2 ) )
 
-        skipNext = False
+        #skipNext = 0
         doGlide = False
         i = 0
-        for iZ in rz :
+        for it in rS :
 
-            if skipNext :
-                i=i+1
-                skipNext = False
+            print( ' SIZE = %d' %(len(rS)))
+            if  it == 0 or abs(it) ==2 :
+                i = i+1
                 continue
 
-            if i > len(rE) -3 :
+            if len(rz) > 3 and i < (len(rz) - 3) :
+                print('     ( %.3f, %.3f) -> ( %.3f, %.3f) -> ( %.3f, %.3f)' %(rx[i], ry[i] , rx[i+1], ry[i+1],rx[i+2], ry[i+2] ) )
+
+            #if skipNext > 0 :
+            #    print('   skip added segment !' )
+            #    i=i+1
+            #    skipNext = skipNext - 1
+            #    continue
+
+            if i > len(rS) -3 :
                 doGlide = False
                 break
 
             # Check the angle to see if gliding is necessary
             angle = dTheta( rx[i], ry[i], rx[i+1], ry[i+1], rx[i+2], ry[i+2] )
-            if abs(angle) > 1.57 :
+            print(' (%d) = angle = %.3f ' %(i, angle ))
+            #if abs(angle) > 1.57 and rE[i] >= 0 :
+            if angle <=0.  and angle > -1. and rE[i] >= 0 :
                 doGlide = True
 
-
             if doGlide :
+                print(' **** Gliding !! ')
                 # Calculate the segment length
-                md1 = SolveLine( rx[i], ry[i], rx[i+1], ry[i+1] )
-                dx1 = rx[i+1] - rx[i]
-                dy1 = ry[i+1] - ry[i]
-                L1 = math.sqrt( (dx1*dx1) + (dy1*dy1) )
+                #md1 = SolveLine( rx[i], ry[i], rx[i+1], ry[i+1] )
+                L1 = dLength( rx[i], ry[i], rx[i+1], ry[i+1] )
 
-                md2 = SolveLine( rx[i+1], ry[i+1], rx[i+2], ry[i+2] )
-                dx2 = rx[i+2] - rx[i+1]
-                dy2 = ry[i+2] - ry[i+1]
-                L2 = math.sqrt( (dx2*dx2) + (dy2*dy2) )
+                #md2 = SolveLine( rx[i+1], ry[i+1], rx[i+2], ry[i+2] )
+                L2 = dLength( rx[i+1], ry[i+1], rx[i+2], ry[i+2] )
 
                 # Break the segment
                 # Slow down/turn off
-                if gd1 < L1 :
-                    # adding another point
-                    lx = dx1*gd1/L1
-                    ly = dy1*gd1/L1
-                    gx1 = rx[i+1] - lx
-                    gy1 = ry[i+1] - ly
-                    rx.insert( i+1, gx1 )
-                    ry.insert( i+1, gy1 )
-                    rz.insert( i+1, rz[i] )
-                    rE.insert( i+1, rE[i] )
-                    rS.insert( i+1, 1 )
-                    rE[i+2] = eVal1
-                    skipNext = True
 
-                    # Turn back on
-                    if gd2 < L2 :
-                        lx2 = dx2*gd2/L2
-                        ly2 = dy2*gd2/L2
-                        gx2 = rx[i+2] + lx2
-                        gy2 = ry[i+2] + ly2
-                        rx.insert( i+3, gx2 )
-                        ry.insert( i+3, gy2 )
-                        rz.insert( i+3, rz[i] )
-                        rE.insert( i+3, eVal2 )
-                        rS.insert( i+3, 1 )
-                        skipNext = True
-                    #else :
-                        rE[i+3] = rE[i+3]
+                # adding another point
+                lx = (rx[i+1] - rx[i])*gd1/L1
+                ly = (ry[i+1] - ry[i])*gd1/L1
+                gx1 = rx[i+1] - lx
+                gy1 = ry[i+1] - ly
+                ## re-calculate the E Value for the 1st segment
+                dL = dLength( rx[i], ry[i], gx1, gy1 )
+                eVal0 = self.Eval * dL / self.Fval
+                rx.insert( i+1, gx1 )
+                ry.insert( i+1, gy1 )
+                rz.insert( i+1, rz[i] )
+                rE.insert( i+1, eVal0 )
+                rS.insert( i+1, 1 )
+                print(' == > ( %.3f, %.3f) -> ( %.3f, %.3f)  in %.4f (%d)' %(rx[i], ry[i] , rx[i+1], ry[i+1], eVal0, rS[i+1] ) )
+                ## re-calculate the E Value for the 2nd segment
+                dL = dLength( rx[i+2], ry[i+2], gx1, gy1 )
+                scale = self.gFval1 / self.Fval
+                eVal1 = self.Eval * dL * eRatio1 * scale / self.gFval1
+                rE[i+2] = eVal1
+                rS[i+2] = 3
+                print(' ===> ( %.3f, %.3f) -> ( %.3f, %.3f)  in %.4f (%d)' %(rx[i+1], ry[i+1] , rx[i+2], ry[i+2], eVal1, rS[i+2] ) )
+                #skipNext = skipNext + 1
 
-                else :
-                    # Turn off at next point
-                    rE[i+1] = rE[i+1]
-                    # Turn back on
-                    if gd2 < L2 :
-                        lx2 = dx2*gd2/L2
-                        ly2 = dy2*gd2/L2
-                        gx2 = rx[i+1] + lx2
-                        gy2 = ry[i+1] + ly2
-                        rx.insert( i+2, gx2 )
-                        ry.insert( i+2, gy2 )
-                        rz.insert( i+2, rz[i] )
-                        rE.insert( i+2, eVal2 )
-                        rS.insert( i+2, 1 )
-                        skipNext = True
-                    else :
-                        rE[i+2] =  rE[i+2]
+                # Turn back on
+                # adding another point
+                lx2 = (rx[i+3] - rx[i+2])*gd2/L2
+                ly2 = (ry[i+3] - ry[i+2])*gd2/L2
+                gx2 = rx[i+2] + lx2
+                gy2 = ry[i+2] + ly2
+                ## re-calculate the E Value for the 1st segment
+                dL = dLength( gx2, gy2, rx[i+2], ry[i+2] )
+                scale = self.gFval2 / self.Fval
+                eVal2 = self.Eval * dL * eRatio2 * scale / self.gFval2
+                rx.insert( i+3, gx2 )
+                ry.insert( i+3, gy2 )
+                rz.insert( i+3, rz[i] )
+                rE.insert( i+3, eVal2 )
+                rS.insert( i+3, 4 )
+                print(' ---> ( %.3f, %.3f) -> ( %.3f, %.3f)  in %.4f (%d)' %(rx[i+2], ry[i+2] , rx[i+3], ry[i+3], eVal2, rS[i+3] ) )
+                ## re-calculate the E Value for the 2st segment
+                dL = dLength( gx2, gy2, rx[i+4], ry[i+4] )
+                eVal0 = self.Eval * dL / self.Fval
+                rE[i+4] = eVal0
+                print(' -- > ( %.3f, %.3f) -> ( %.3f, %.3f)  in %.4f (%d)' %(rx[i+3], ry[i+3] , rx[i+4], ry[i+4], eVal0, rS[i+4] ) )
+                #skipNext = skipNext + 1
 
-            doGlide = False
-            i = i+1
+                doGlide = False
+                i = i+4
+            else :
+                print(' ==== Pass !! ')
+                i = i+1
 
-
+        print(' Gliding done !')
 
     # status is given by the way(G0 or G1 or retract)  to the point
     # rS status ->  1 : print , 0: move only , 2: retract,
@@ -271,7 +298,7 @@ class Polygrams:
                     ry.append(self.v[i])
                     rz.append( zVal )
                     rE.append( 0.0 )
-                    rS.append( 2 )
+                    rS.append( -2 )
                 else :
                     rx.append(self.u[i])
                     ry.append(self.v[i])
@@ -279,9 +306,7 @@ class Polygrams:
                     rE.append( 0.0 )
                     rS.append( 0 )
 
-
             else :
-
                 dx = self.u[i] - self.u[i-1]
                 dy = self.v[i] - self.v[i-1]
                 dl = math.sqrt( (dx*dx) + (dy*dy) )
@@ -317,7 +342,7 @@ class Polygrams:
                     ry.append(self.y[i])
                     rz.append( zVal )
                     rE.append( 0.0 )
-                    rS.append( 2 )
+                    rS.append( -2 )
                 else :
                     rx.append(self.x[i])
                     ry.append(self.y[i])
@@ -342,13 +367,14 @@ class Polygrams:
     def GetResult(self, rs = [], rx = [], ry = [], rz = [], zVal = 0., rE = [], retract = False ):
 
         if self.objType == 0 :
+            print('Get Result Type 0')
             self.GetPolygonResult( rs, rx, ry, rz, zVal, rE, retract )
         elif self.objType == 1 :
+            print('Get Result Type 1')
             self.GetPolygramResult( rs, rx, ry, rz, zVal, rE, retract )
-            self.Gliding( 0.0, rs, rx, ry, rz, rE)
         else :
+            print('Get Result Type 2')
             self.GetPolygramResult( rs, rx, ry, rz, zVal, rE, retract )
-            self.Gliding( 0.0, rs, rx, ry, rz, rE)
 
 
     def Configure(self):
@@ -360,14 +386,14 @@ class Polygrams:
         self.n   = input('Number of Sides (5): ')
         if self.n   == '':  self.n = 5
         else :         self.n = int(self.n)
-        self.r1    = input('1st Radius (15): ')
-        if self.r1 == '':  self.r1 = 15
+        self.r1    = input('1st Radius (18): ')
+        if self.r1 == '':  self.r1 = 18
         else :         self.r1 = float( self.r1)
-        self.r2    = input('2nd Radius (12): ')
-        if self.r2 == '':  self.r2 = 12
+        self.r2    = input('2nd Radius (10): ')
+        if self.r2 == '':  self.r2 = 10
         else :         self.r2 = float( self.r2)
-        self.bw     = input('Bead width (0.5): ')
-        if self.bw  == '':  self.bw = 0.5
+        self.bw     = input('Bead width (0.75): ')
+        if self.bw  == '':  self.bw = 0.75
         else :         self.bw = float(self.bw)
         self.nLayer    = input('Number of Layer (1): ')
         if self.nLayer  == '':  self.nLayer = 1
@@ -375,11 +401,11 @@ class Polygrams:
         self.delta = input(' Delta angle :')
         if self.delta == '' :  self.delta = -1*math.pi/2
         else :        self.delta  = float( self.delta )
-        self.rho  = input(' Flow Rate (1.0) :')
-        if self.rho == '' :  self.rho = 1.
+        self.rho  = input(' Flow Rate (0.75) :')
+        if self.rho == '' :  self.rho = 0.75
         else :        self.rho  = float( self.rho )
-        self.Fval  = input(' Stage Velocity (4800) :')
-        if self.Fval == '' :  self.Fval = 4800
+        self.Fval  = input(' Stage Velocity (6000) :')
+        if self.Fval == '' :  self.Fval = 6000
         else :        self.Fval  = float( self.Fval )
 
         self.Eval = self.rho * self.Fval
@@ -487,21 +513,23 @@ class Polygrams:
         self.GetResult(rs, rx, ry, rz, zVal, rE  )
 
 
-
+polyObj = Polygrams()
+polyObj.Configure()
 rs = []
 rx = []
 ry = []
 rz = []
 rE = []
-polyObj = Polygrams()
-polyObj.Configure()
 #polyObj.Construct2D(rs, rx, ry)
 polyObj.AddSkirt(rs, rx, ry, rz, rE )
 polyObj.Construct3D(rs, rx, ry, rz, rE )
+polyObj.SetGlideSpeed(1000,1000)
+polyObj.Gliding( 0.06, 0.1 , 0.06, 0.1, rs, rx, ry, rz, rE)
 
 # Output GCode
 gc = GCodeGenerator( rs, rx, ry, rz, rE, polyObj.Fval )
 gc.Shift( 150, 150, 0 )
+gc.SetGlideSpeed( polyObj.gFval1, polyObj.gFval2 )
 gc.Generate()
 
 # setup cavas
@@ -537,6 +565,10 @@ for i in range( nPoint -1 ) :
         ax.quiver(x_, y_, dX, dY, angles='xy', scale_units='xy', scale=1, color='red', picker=5)
     elif rs[i+1] == 1 :
         ax.quiver(x_, y_, dX, dY, angles='xy', scale_units='xy', scale=1, color='purple', picker=5)
+    elif rs[i+1] == 3 :
+        ax.quiver(x_, y_, dX, dY, angles='xy', scale_units='xy', scale=1, color='blue', picker=5)
+    elif rs[i+1] == 4 :
+        ax.quiver(x_, y_, dX, dY, angles='xy', scale_units='xy', scale=1, color='black', picker=5)
     else :
         continue
 
@@ -544,6 +576,7 @@ for i in range( nPoint -1 ) :
     y_ = ry[i+1]
 
 plt.show()
+
 
 
 

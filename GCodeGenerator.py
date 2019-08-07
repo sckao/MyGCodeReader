@@ -1,14 +1,18 @@
 
 class GCodeGenerator :
 
-    def __init__(self, rs = [], rx =[], ry=[], rz=[], rE=[], F =4000):
+    def __init__(self, rs = [], rx =[], ry=[], rz=[], rE=[], F =4000 ):
 
         self.rs = rs
         self.rx = rx
         self.ry = ry
         self.rz = rz
         self.rE = rE
-        self.F  = F
+        self.F   = F
+        self.gF1 = F
+        self.gF2 = F
+
+
 
     def Shift(self, sx0 = 0., sy0 = 0. , sz0 = 0., sE0 = 1., sF0 = 1. ):
 
@@ -18,6 +22,9 @@ class GCodeGenerator :
         self.sE = sE0
         self.sF = sF0
 
+    def SetGlideSpeed(self, F1 , F2 ):
+        self.gF1 = F1
+        self.gF2 = F2
 
     def Generate(self):
 
@@ -35,6 +42,9 @@ class GCodeGenerator :
         zVal = self.rz[0]
         eVal = self.rE[0]
         fVal = self.F
+        gfVal1 = self.gF1
+        gfVal2 = self.gF2
+
 
         for i in range(nPoint):
 
@@ -42,7 +52,9 @@ class GCodeGenerator :
             yVal = self.ry[i] + self.sy
             zVal = self.rz[i] + self.sz
             eVal = self.rE[i]*self.sE
-            fVal = self.F*self.sF
+            fVal   = self.F*self.sF
+            gfVal1 = self.gF1*self.sF
+            gfVal2 = self.gF2*self.sF
 
             if i == 0 :
                 gfile.write('G90\n')
@@ -59,8 +71,14 @@ class GCodeGenerator :
             if self.rs[i] == 0 :
                 gfile.write( 'G0 X%.3f Y%.3f Z%.3f E%.4f\n' %( xVal, yVal, zVal, eVal  ) )
 
-            if self.rs[i] == 2 :
+            if abs(self.rs[i]) == 2 :
                 gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f\n' %( xVal, yVal, zVal, eVal ) )
+
+            if self.rs[i] == 3 :
+                gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%.0f\n' %( xVal, yVal, zVal, eVal, gfVal1 ) )
+
+            if self.rs[i] == 4 :
+                gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%.0f\n' %( xVal, yVal, zVal, eVal, gfVal2 ) )
 
 
             if i == (nPoint -1) :
