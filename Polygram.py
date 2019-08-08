@@ -3,6 +3,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from GCodeGenerator import GCodeGenerator
+from GCodeGenerator import dTheta
+from GCodeGenerator import dLength
+
 
 # Solve slope (m) and intercept(d) given two points (x1, y1) , (x2, y2)
 #    y = mx + d
@@ -16,32 +19,7 @@ def SolveLine( x1, y1, x2, y2 ) :
 
     return c
 
-# Return cos ( 0 ~ pi )
-def dTheta( x1, y1, x2, y2, x3, y3 ) :
 
-    a = [x2-x1, y2-y1, 0.]
-    b = [x3-x2, y3-y2, 0.]
-    ab  = np.inner(a,b)
-    al = math.sqrt( (a[0]*a[0]) + (a[1]*a[1])  )
-    bl = math.sqrt( (b[0]*b[0]) + (b[1]*b[1])  )
-
-    if al > 0. and bl > 0. :
-        cosA = ab/(al*bl)
-    else :
-        cosA = -9
-    #print(" ab: %.3f , al: %.3f  , bl: %.3f cos =  %.4f" %(ab, al, bl, cosA) )
-    return cosA
-    #angle = math.acos( cosA*0.999 )
-    #print( ' cosA = %.3f , A = %.3f - %.3f' %(cosA, angle, angle*180/3.1415926 ) )
-
-    return angle
-
-def dLength(x1, y1, x2, y2) :
-
-    dx = x2 - x1
-    dy = y2 - y1
-    dL = math.sqrt( (dx*dx) + (dy*dy) )
-    return dL
 
 class Polygrams:
 
@@ -471,30 +449,6 @@ class Polygrams:
                 self.GetResult(rS, rx, ry, rz, zVal, rE, retract   )
                 r = r+ dr
 
-            '''
-            hNS = 0
-            if self.nStep%2 == 0 :
-                hNS = int( self.nStep /2 )
-            if self.nStep%2 == 1 :
-                hNS = int( self.nStep /2) + 1
-            print( 'Number of step : %d' %(hNS) )
-
-            for j in range( hNS ):
-                r = r0 + (j*dr)
-                print( ' ==(%d) r1 = %.3f == \n' %(j, r))
-                self.Create( self.n, r , da_ )
-                self.GetResult(rS, rx, ry, rz, zVal, rE  )
-
-                k = self.nStep - 1 - j
-                if k == j :
-                    continue
-                else :
-                    r = r0 + (k*dr)
-                    print( ' ==(%d) r2 = %.3f == \n' %(k, r))
-                    self.Create( self.n, r , da_ )
-                    self.GetResult(rS, rx, ry, rz, zVal, rE  )
-
-            '''
 
             da_ = da_ + dtheta
             zVal = zVal + self.bh
@@ -520,16 +474,21 @@ rx = []
 ry = []
 rz = []
 rE = []
+
+
 #polyObj.Construct2D(rs, rx, ry)
 polyObj.AddSkirt(rs, rx, ry, rz, rE )
 polyObj.Construct3D(rs, rx, ry, rz, rE )
-polyObj.SetGlideSpeed(1000,1000)
-polyObj.Gliding( 0.06, 0.1 , 0.06, 0.1, rs, rx, ry, rz, rE)
+#polyObj.SetGlideSpeed(1000,1000)
+#polyObj.Gliding( 0.06, 0.1 , 0.06, 0.1, rs, rx, ry, rz, rE)
 
 # Output GCode
 gc = GCodeGenerator( rs, rx, ry, rz, rE, polyObj.Fval )
+#gc.SetGlideSpeed( polyObj.gFval1, polyObj.gFval2 )
+gc.SetGlideSpeed( 2000, 3000 )
+gc.Gliding( 0.06, 0.1 , 0.06, 0.1, rs, rx, ry, rz, rE )
+
 gc.Shift( 150, 150, 0 )
-gc.SetGlideSpeed( polyObj.gFval1, polyObj.gFval2 )
 gc.Generate()
 
 # setup cavas
