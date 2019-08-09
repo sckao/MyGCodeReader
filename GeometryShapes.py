@@ -17,6 +17,8 @@ class Rectangle :
     fh = 0.1
     rd = 2.0 # retraction distance
 
+    nLayer = 1
+
     # Linear density ( or Flow rate )
     rho = 0.75
     Fval = 6000.
@@ -30,6 +32,9 @@ class Rectangle :
         self.length = l
         self.height = h
         self.phi    = angle
+        self.shelled = False
+        self.x0 = 0
+        self.y0 = 0
 
     def Create(self):
 
@@ -40,14 +45,99 @@ class Rectangle :
 
     # phi : 0~ 2pi , angle of d-vector
     # d : travel distance in x, w: total width in y to fill
-    # ud = 1 or -1 => go downward or upward
-    def XZigzagFill(self, x0 , y0 , ud = 1):
+    # ud = -1 or 1 => go downward or upward
+    def AddShell(self, ud = 1 ):
 
         d = self.length
         w = self.width
         phi = self.phi
-        x = x0
-        y = y0
+        x = self.x0
+        y = self.y0
+
+        self.u.append( x )
+        self.v.append( y )
+
+        x = x + d*math.cos(phi)
+        y = y + d*math.sin(phi)
+        self.u.append( x )
+        self.v.append( y )
+
+        x = x
+        y = y + (ud*w)
+        self.u.append( x )
+        self.v.append( y )
+
+
+        x = x + d*math.cos( phi - math.pi )
+        y = y + d*math.sin( phi - math.pi )
+        self.u.append( x )
+        self.v.append( y )
+
+        self.u.append( self.x0 )
+        self.v.append( self.y0 )
+
+        self.shelled = True
+
+    # ud : -1 for downward  , 1 for upward
+    def AddSkirt(self, delta =20, ud = 1 ):
+
+        phi = self.phi
+        LR = 1
+        if math.cos(phi) > 0 : LR =  1
+        else :                 LR = -1
+
+        dy = (delta/abs(math.cos(phi))) + LR*ud*(delta*abs(math.tan(phi)))
+        d = self.length + (2*delta/abs(math.cos(phi)))
+        w = self.width + (2*delta/abs(math.cos(phi)))
+        x = self.x0 - (delta*LR)
+        y = self.y0 - (ud*dy )
+
+        x_0 = x
+        y_0 = y
+
+        self.u.append( x )
+        self.v.append( y )
+
+        x = x + d*math.cos(phi)
+        y = y + d*math.sin(phi)
+        self.u.append( x )
+        self.v.append( y )
+
+        x = x
+        y = y + (ud*w)
+        self.u.append( x )
+        self.v.append( y )
+
+
+        x = x + d*math.cos( phi - math.pi )
+        y = y + d*math.sin( phi - math.pi )
+        self.u.append( x )
+        self.v.append( y )
+
+        self.u.append( x_0 )
+        self.v.append( y_0 )
+
+
+    # phi : 0~ 2pi , angle of w-vector
+    # d : travel distance in x, w: total width in y to fill
+    # ud = 1 or -1 => go upward or downward
+    def XZigzagFill(self, ud = 1):
+
+        phi = self.phi
+        LR = 1
+        if math.cos(phi) < 0 : LR =  -1
+        dy = (self.bw/abs(math.cos(phi))) + LR*ud*(self.bw*abs(math.tan(phi)))
+
+        d = self.length
+        w = self.width
+        x = self.x0
+        y = self.y0
+
+        if self.shelled :
+            d = self.length - (2*self.bw/abs(math.cos(phi)))
+            w = self.width - (2*self.bw/abs(math.cos(phi)))
+            x = self.x0 + (self.bw*LR)
+            y = self.y0 + (ud*dy )
 
         i = 0.
         self.u.append( x )
@@ -60,7 +150,7 @@ class Rectangle :
             self.v.append( y )
 
             i = i + 1
-            y = y - (ud*self.bw)
+            y = y + (ud*self.bw)
             x = x
             phi = phi - ( math.pow(-1,i-1)*math.pi)
             if (w - (i*self.bw)) >=0 :
@@ -69,14 +159,27 @@ class Rectangle :
 
     # phi : 0~ 2pi , angle of w-vector
     # d : travel distance in x, w: total width in y to fill
-    # ud = 1 or -1 => go downward or upward
-    def YZigzagFill(self, x0 , y0 , ud = 1):
+    # ud = -1 or 1 => go downward or upward
+    def YZigzagFill(self, ud = 1):
+
+        phi = self.phi
+        LR = 1
+        if math.cos(phi) < 0 : LR =  -1
+        dy = (self.bw/abs(math.cos(phi))) + LR*ud*(self.bw*abs(math.tan(phi)))
 
         d = self.length
         w = self.width
-        phi = self.phi
-        x = x0
-        y = y0
+        x = self.x0
+        y = self.y0
+        if self.shelled :
+            d = self.length - (2*self.bw/abs(math.cos(phi)))
+            w = self.width - (2*self.bw/abs(math.cos(phi)))
+            x = self.x0 + (self.bw*LR)
+            y = self.y0 + (ud*dy )
+            #d = self.length - (self.bw*2)
+            #w = self.width - (self.bw*2)
+            #x = x0 + (self.bw*math.cos(phi))
+            #y = y0 + (self.bw*ud)
 
         r = 0.
         if  phi == math.pi/2 or phi == 1.5*math.pi :
@@ -92,7 +195,7 @@ class Rectangle :
         while (d - (i*r) ) >= 0  :
 
             x = x
-            y = y - (pow(-1,i)*w*ud)
+            y = y + (pow(-1,i)*w*ud)
             self.u.append( x )
             self.v.append( y )
 
@@ -120,7 +223,7 @@ class Rectangle :
 
                 rx.append( self.u[i] )
                 ry.append( self.v[i] )
-                rz.append( zVal + self.rd )
+                rz.append( zVal )
                 rs.append( -2 )
                 rE.append( 0 )
             else :
@@ -139,7 +242,7 @@ class Rectangle :
 
         rx.append( self.u[i-1] )
         ry.append( self.v[i-1] )
-        rz.append( zVal )
+        rz.append( zVal + self.rd )
         rs.append( 2 )
         rE.append( -1 )
 
@@ -149,23 +252,108 @@ class Rectangle :
 
         i = 0
         z = self.ts + self.bh + self.fh
-        while h >= (i*self.bh ) :
+        self.AddSkirt( 20, 1 )
+        self.GetResult( z, rx, ry, rz, rE, rS )
+        self.u = []
+        self.v = []
+        #while h >= (i*self.bh ) :
+        for i in range( self.nLayer ) :
 
+            self.AddShell( 1 )
+            self.GetResult( z, rx, ry, rz, rE, rS )
+            self.u = []
+            self.v = []
             print(' Layer %d = %.3f ' %(i,z ))
             if i%2 == 0 :
-                self.XZigzagFill(20,10,1)
+                self.XZigzagFill( 1 )
                 self.GetResult( z, rx, ry, rz, rE, rS )
                 self.u = []
                 self.v = []
             else :
-                self.YZigzagFill(20,10,1)
+                self.YZigzagFill( 1 )
                 self.GetResult( z, rx, ry, rz, rE, rS )
                 self.u = []
                 self.v = []
 
+            z = z + self.bh
+
+    def Setup(self, length, width, phi, nLayer, x0, y0 ):
+
+        self.length = length
+        self.width  = width
+        self.phi    = phi
+        self.nLayer = nLayer
+        self.x0 = x0
+        self.y0 = y0
+
+    def ConstructBMW(self, rx =[], ry= [], rz = [] , rE = [], rS = [] ):
+
+        h = self.height
+        theX0 = 10
+        theY0 = 87
+        dY0   = 15
+
+        i = 0
+        z = self.ts + self.bh + self.fh + 6
+        self.Setup(127,54,0,1, theX0, theY0 )
+        self.AddSkirt( 5, 1 )
+        self.GetResult( z, rx, ry, rz, rE, rS )
+        self.u = []
+        self.v = []
+
+        for i in range( self.nLayer ) :
+
+            theY0 = 87
+            for j in range(4) :
+
+                self.Setup(127,9,0,1, theX0, theY0 )
+                self.AddShell( 1 )
+                self.GetResult( z, rx, ry, rz, rE, rS )
+                self.u = []
+                self.v = []
+                print(' Layer %d = %.3f ' %(i,z ))
+                if i%2 == 0 :
+                    self.XZigzagFill( 1 )
+                    self.GetResult( z, rx, ry, rz, rE, rS )
+                    self.u = []
+                    self.v = []
+                else :
+                    self.YZigzagFill( 1 )
+                    self.GetResult( z, rx, ry, rz, rE, rS )
+                    self.u = []
+                    self.v = []
+
+                theY0 = theY0 + dY0
 
             z = z + self.bh
-            i = i+1
+
+    def Configure(self):
+
+        self.length = input('Length (127 mm): ')
+        if self.length == '':
+            self.length = 127
+        else:
+            self.length = float(self.length)
+        self.width = input('Width (9 mm): ')
+        if self.width == '':
+            self.width = 9
+        else:
+            self.width = float(self.width)
+        self.phi = input(' Angle (0~ 2pi, default : 0) :')
+        if self.phi == '':
+            self.phi = 0
+        else:
+            self.phi = float(self.phi)
+        self.bw = input('Bead width (0.75): ')
+        if self.bw == '':
+            self.bw = 0.75
+        else:
+            self.bw = float(self.bw)
+        self.nLayer = input('Number of Layer (1): ')
+        if self.nLayer == '':
+            self.nLayer = 1
+        else:
+            self.nLayer = int(self.nLayer)
 
 
 
@@ -175,22 +363,24 @@ ry = []
 rz = []
 rE = []
 rS = []
-recObj = Rectangle(20, 5 , 1, 3.)
-#recObj.XZigzagFill(20, 10, 1 )
-#recObj.YZigzagFill(20, 10, 1 )
-recObj.Construct3D(rx, ry, rz, rE, rS)
+
+recObj = Rectangle(20, 5 , 1, math.pi)
+#recObj.Configure()
+#recObj.XZigzagFill( 1 )
+#recObj.YZigzagFill( 1 )
+recObj.ConstructBMW(rx, ry, rz, rE, rS)
 
 # Output GCode
 gc = GCodeGenerator( rS, rx, ry, rz, rE, recObj.Fval )
-gc.SetGlideSpeed( 2000, 3000 )
-gc.Gliding( 0.05, 0.1 , 0.05, 0.1, rS, rx, ry, rz, rE )
+#gc.SetGlideSpeed( 2000, 3000 )
+#gc.Gliding( 0.05, 0.1 , 0.05, 0.1, rS, rx, ry, rz, rE )
 
-#gc.Shift( 150, 150, 0 )
+#gc.Shift( 100, 100, 0 )
 gc.Generate()
 
 # setup cavas
 fig = plt.figure( figsize=(7.5,7.5) )
-fig.suptitle( 'Reca', fontsize=10, fontweight='bold')
+fig.suptitle( 'Rectangle', fontsize=10, fontweight='bold')
 
 # one sub plot (x,y,index)
 ax = fig.add_subplot(111)
@@ -198,8 +388,8 @@ ax.set_xlabel('x')
 ax.set_ylabel('y')
 
 # Plot XY limit and grid
-plt.xlim([-55, 55])
-plt.ylim([-55, 55])
+plt.xlim([30, 230])
+plt.ylim([100, 300])
 plt.grid(b=True, which='major')
 
 # Start Routing (x,y) -> (xt,yt) -> (x,y)
@@ -216,9 +406,9 @@ for i in range( nPoint -1 ) :
     #elif (i%(n*2+1) ) == (n*2):
     elif i == nPoint -2 :
         ax.quiver(x_, y_, dX, dY, angles='xy', scale_units='xy', scale=1, color='red', picker=5)
-    elif rS[i+1] == 3 :
+    elif abs(rS[i+1]) == 2 :
         ax.quiver(x_, y_, dX, dY, angles='xy', scale_units='xy', scale=1, color='blue', picker=5)
-    elif rS[i+1] == 4 :
+    elif rS[i+1] == 0 :
         ax.quiver(x_, y_, dX, dY, angles='xy', scale_units='xy', scale=1, color='black', picker=5)
     else :
         ax.quiver(x_, y_, dX, dY, angles='xy', scale_units='xy', scale=1, color='purple', picker=5)
