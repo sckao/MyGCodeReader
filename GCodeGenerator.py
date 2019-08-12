@@ -28,6 +28,7 @@ def dLength(x1, y1, x2, y2) :
     return dL
 
 
+
 class GCodeGenerator :
 
     # Linear density ( or Flow rate )
@@ -86,6 +87,36 @@ class GCodeGenerator :
              rz.append( rz[i]+ up  )
              rE.append( -1  )
              rS.append( 2 )
+
+
+    def Ending(self, flength, rs = [], rx = [], ry = [], rz = [], rE = [] ):
+
+        j = len( rs ) - 1
+        for i in range( len(rs) ) :
+
+            L = dLength( rx[j], ry[j], rx[j-1], ry[j-1] )
+
+            if L > flength :
+                bp = self.BreakSegment( rx[j-1], ry[j-1], rx[j], ry[j] )
+                ## re-calculate the E Value for the 1st segment
+                dL = dLength(rx[j-1], ry[j-1], bp[0], bp[1] )
+                eVal0 = self.Eval * dL / self.F
+                rx.insert(j, bp[0])
+                ry.insert(j, bp[1])
+                rz.insert(j, rz[i])
+                rE.insert(j, eVal0)
+                rs.insert(j, 1)
+                print(' == > ( %.3f, %.3f) -> ( %.3f, %.3f)  in %.4f (%d)' %( rx[j-1], ry[j-1], rx[j], ry[j], eVal0, rs[j]))
+                ## re-calculate the E Value for the 2nd segment
+                dL = dLength(rx[j+1], ry[j+1], bp[0], bp[1] )
+                rE[j+1] = 0
+                print(' ===> ( %.3f, %.3f) -> ( %.3f, %.3f) ' %( rx[j + 1], ry[j + 1], rx[j], ry[j]))
+            else :
+                rE[j+1] = 0
+
+
+            j = j -1
+
 
 
 
