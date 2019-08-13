@@ -28,6 +28,51 @@ def dLength(x1, y1, x2, y2) :
     return dL
 
 
+# Ratio is percentage of the breaking point from (x2, y2)
+# segment is from (x1,y1) to (x2,y2)
+def BreakSegment( x1,y1, x2,y2, ratio ):
+
+    L = dLength( x1, y1, x2, y2 )
+    dx = x2 -x1
+    dy = y2 -y1
+    x0 =  x2 - dx*ratio
+    y0 =  y2 - dy*ratio
+    return [x0,y0]
+
+
+# rs status = 9 for ending
+def Ending( flength, rs = [], rx = [], ry = [], rz = [], rE = [] ):
+
+    j = len( rs ) - 1
+    for i in range( len(rs) ) :
+
+        L = dLength( rx[j], ry[j], rx[j-1], ry[j-1] )
+
+        if L > flength :
+            bp = BreakSegment( rx[j-1], ry[j-1], rx[j], ry[j], flength/L )
+            ## re-calculate the E Value for the 1st segment
+            dL = dLength(rx[j-1], ry[j-1], bp[0], bp[1] )
+            eVal0 = rE[j] * dL / L
+
+            rx.insert(j, bp[0])
+            ry.insert(j, bp[1])
+            rz.insert(j, rz[i])
+            rE.insert(j, eVal0)
+            rs.insert(j, 1)
+            print(' == > ( %.3f, %.3f) -> ( %.3f, %.3f)  in %.4f (%d)' %( rx[j-1], ry[j-1], rx[j], ry[j], eVal0, rs[j]))
+            ## re-calculate the E Value for the 2nd segment
+            dL = dLength(rx[j+1], ry[j+1], bp[0], bp[1] )
+            rE[j+1] = 0
+            rs[j+1] = 9
+            print(' ===> ( %.3f, %.3f) -> ( %.3f, %.3f) ' %( rx[j + 1], ry[j + 1], rx[j], ry[j]))
+            break
+        else :
+            rE[j] = 0
+            rs[j] = 9
+
+        j = j -1
+
+
 
 class GCodeGenerator :
 
@@ -68,17 +113,6 @@ class GCodeGenerator :
         self.gF2 = F2
 
 
-    # Ratio is percentage of the breaking point from (x2, y2)
-    # segment is from (x1,y1) to (x2,y2)
-    def BreakSegment(self,x1,y1, x2,y2, ratio ):
-
-        L = dLength( x1, y1, x2, y2 )
-        dx = x2 -x1
-        dy = y2 -y1
-        x0 =  x2 - dx*ratio
-        y0 =  y2 - dy*ratio
-        return [x0,y0]
-
     def Retract(self, up = 2, down = 2, rS = [], rx = [], ry = [], rz = [], rE = []  ):
 
              i = len( rx ) -1
@@ -87,37 +121,6 @@ class GCodeGenerator :
              rz.append( rz[i]+ up  )
              rE.append( -1  )
              rS.append( 2 )
-
-
-    def Ending(self, flength, rs = [], rx = [], ry = [], rz = [], rE = [] ):
-
-        j = len( rs ) - 1
-        for i in range( len(rs) ) :
-
-            L = dLength( rx[j], ry[j], rx[j-1], ry[j-1] )
-
-            if L > flength :
-                bp = self.BreakSegment( rx[j-1], ry[j-1], rx[j], ry[j] )
-                ## re-calculate the E Value for the 1st segment
-                dL = dLength(rx[j-1], ry[j-1], bp[0], bp[1] )
-                eVal0 = self.Eval * dL / self.F
-                rx.insert(j, bp[0])
-                ry.insert(j, bp[1])
-                rz.insert(j, rz[i])
-                rE.insert(j, eVal0)
-                rs.insert(j, 1)
-                print(' == > ( %.3f, %.3f) -> ( %.3f, %.3f)  in %.4f (%d)' %( rx[j-1], ry[j-1], rx[j], ry[j], eVal0, rs[j]))
-                ## re-calculate the E Value for the 2nd segment
-                dL = dLength(rx[j+1], ry[j+1], bp[0], bp[1] )
-                rE[j+1] = 0
-                print(' ===> ( %.3f, %.3f) -> ( %.3f, %.3f) ' %( rx[j + 1], ry[j + 1], rx[j], ry[j]))
-            else :
-                rE[j+1] = 0
-
-
-            j = j -1
-
-
 
 
     def Gliding(self, gTime1, eRatio1 , gTime2, eRatio2, rS = [], rx = [], ry = [], rz = [], rE = [] ):
@@ -167,7 +170,7 @@ class GCodeGenerator :
 
                     # Set gliding position
                     ratio = gd1 / L1
-                    bp = self.BreakSegment(rx[i], ry[i], rx[i+1], ry[i+1],ratio)
+                    bp = BreakSegment(rx[i], ry[i], rx[i+1], ry[i+1],ratio)
 
                     ## re-calculate the E Value for the 1st segment
                     dL = dLength(rx[i], ry[i], bp[0], bp[1] )
@@ -199,7 +202,7 @@ class GCodeGenerator :
                 if gd2 < L2 :
                     # Set gliding position
                     ratio = abs(L2 - gd2) / L2
-                    bp = self.BreakSegment(rx[j], ry[j], rx[j+1], ry[j+1],ratio)
+                    bp = BreakSegment(rx[j], ry[j], rx[j+1], ry[j+1],ratio)
 
                     ## re-calculate the E Value for the 1st segment
                     dL = dLength(bp[0], bp[1], rx[j], ry[j])
@@ -282,11 +285,16 @@ class GCodeGenerator :
             if abs(self.rs[i]) == 2 :
                 gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f\n' %( xVal, yVal, zVal, eVal ) )
 
+            # status 3 and 4 is for gliding, slow down and giving lower extrude amount
             if self.rs[i] == 3 :
                 gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%.0f\n' %( xVal, yVal, zVal, eVal, gfVal1 ) )
 
             if self.rs[i] == 4 :
                 gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%.0f\n' %( xVal, yVal, zVal, eVal, gfVal2 ) )
+
+            # This is the finishing segment, stop extruding and slow down to 25% of speed
+            if self.rs[i] == 9 :
+                gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%.0f\n' %( xVal, yVal, zVal, eVal, fVal/4 ) )
 
 
             if i == (nPoint -1) :
