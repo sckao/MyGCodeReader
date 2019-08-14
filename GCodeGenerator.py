@@ -271,10 +271,14 @@ class GCodeGenerator :
                 gfile.write('G90\n')
                 gfile.write('M83\n')
                 gfile.write('M106 S0\n')
-                gfile.write('G28\n')
+                gfile.write('G28                            ; Home \n')
+                gfile.write('G92 E0                         ; Reset E \n')
+                gfile.write('M163 S0 P1                     ; Set extruder mix ratio B for 1:1\n')
+                gfile.write('M163 S1 P1                     ; Set extruder mix ratio A for 1:1\n')
+                gfile.write('M163 S2 P1                     ; Enable Extruder \n')
                 gfile.write('T0\n')
                 gfile.write('G1 Z15.0\n')
-                gfile.write( 'G0 X%.3f Y%.3f F%.0f\n' %( xVal, yVal, fVal ) )
+                gfile.write('G0 X%.3f Y%.3f F%.0f\n' %( xVal, yVal, fVal ) )
 
             if self.rs[i] == 1 :
                 gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%.0f\n' %( xVal, yVal, zVal, eVal, fVal ) )
