@@ -9,6 +9,8 @@ class GetQuiverObject:
     my = 0.
     objX = 0.
     objY = 0.
+    objZ = 0.
+    objE = 0.
     dr = 999999999.
     idx = -1
     IO = None
@@ -39,14 +41,14 @@ class GetQuiverObject:
                 self.idx = i
                 self.objX = x
                 self.objY = y
+                self.objZ = ob[2]
+                self.objE = ob[3]
             i = i + 1
 
         if ( self.dr < 5 ) :
-            print('>{:3d}'.format(self.idx) + ' points:{:.3f}'.format(self.objX) + ', {:.3f}'.format(self.objY) + ' dr = {:.3f}'.format(self.dr)
+            print('>{:3d}'.format(self.idx) + '  Object x :{:.3f}'.format(self.objX) + ', y: {:.3f}'.format(self.objY) + ' dr = {:.3f}'.format(self.dr)
                   + ' mouse x: {:.3f}'.format(mx) + ' y: {:.3f}'.format(my) )
             self.press = self.idx, self.objX, self.objY, mx, my
-            #print('>{:3d}'.format(self.press[0]) + ' points:{:.3f}'.format(self.press[1]) + ', {:.3f}'.format(self.press[2])
-            #      + ' -> {:.3f}'.format(self.press[3]) + ', {:.3f}'.format( self.press[4]) )
             return True
         else:
             return False
@@ -61,15 +63,25 @@ class GetQuiverObject:
         self.press = None
 
     def on_press(self, event):
-        #if event.inaxes != self.ax.axes: return
-        if self.key_val == 'control' :
+
+        if self.key_val == 'control' and event.button == 1 :
+            print(' Modify Mode ')
             mx = event.xdata
             my = event.ydata
             #if self.key_val == 'control' :
             self.objMatch(mx, my)
             self.viewbounds = self.ax.viewLim.bounds
-            print( ' - View Limit Bound : ', self.viewbounds  )
-
+            #print( ' - View Limit Bound : ', self.viewbounds  )
+        elif self.key_val == '' and event.button == 3 :
+            print(' Read Only Mode ')
+            mx = event.xdata
+            my = event.ydata
+            #if self.key_val == 'control' :
+            self.objMatch(mx, my)
+            self.viewbounds = self.ax.viewLim.bounds
+            #print( ' - View Limit Bound : ', self.viewbounds  )
+        else :
+            pass
 
 
     def on_motion(self,event):
@@ -98,16 +110,36 @@ class GetQuiverObject:
             SetQuiver( self.ax, self.objV, self.objV[0][0], self.objV[0][1] )
             self.ax.figure.canvas.draw()
         elif self.key_val == '' :
-            self.viewbounds = self.ax.viewLim.bounds
-            print( ' = View Limit Bound : ', self.viewbounds  )
+            mx = event.xdata
+            my = event.ydata
+            #x0 = self.objX
+            #y0 = self.objY
+            self.objV[self.idx][0] = mx
+            self.objV[self.idx][1] = my
+            print(' Pos ( %.3f, %.3f, %.3f,  %.4f ) ' %(self.objX, self.objY, self.objZ, self.objE, ))
+
+            # clear current plot and reset the xy limit
+            self.ax.cla()
+            self.ax.set_xlabel('x')
+            self.ax.set_ylabel('y')
+            #self.viewbounds = self.ax.viewLim.bounds
+            #print( ' = View Limit Bound : ', self.viewbounds  )
             plt.xlim([self.viewbounds[0], self.viewbounds[0] + self.viewbounds[2]])
             plt.ylim([self.viewbounds[1], self.viewbounds[1] + self.viewbounds[3]])
+            plt.grid(b=True, which='major')
+            SetQuiver( self.ax, self.objV, self.objV[0][0], self.objV[0][1] )
+            self.ax.figure.canvas.draw()
+            self.objV[self.idx][0] = self.objX
+            self.objV[self.idx][1] = self.objY
+
         else :
             return
 
 
     def on_release(self, event):
-        if self.key_val != 'control' : return
+        #if self.key_val != 'control' : return
+
+        if self.key_val == '' and event.button == 1 : return
 
         self.press = None
         self.ax.cla()
@@ -159,7 +191,7 @@ def SetQuiver( ax, gV,  X0 = 0. , Y0 = 0. ) :
 
             X += dX
             Y += dY
-        # Z only movement
+        # Z only movement - get information for a scatter plot
         if i[5] == 4 :
             if i[2] == 'orange' :
                 sX.append( i[0] )
@@ -179,7 +211,7 @@ def SetQuiver( ax, gV,  X0 = 0. , Y0 = 0. ) :
 
 
 # gV contains the positions of every X-Y movement, color code and moveType
-def ShowPath( gV, gfile ):
+def ShowPath( gV, gfile, xlimL = -5, xlimR = 295, ylimB = -5, ylimT = 295 ):
 
     # setup cavas
     fig = plt.figure( figsize=(8,8) )
@@ -191,16 +223,16 @@ def ShowPath( gV, gfile ):
     ax.set_ylabel('y')
 
     # Plot XY limit and grid
-    plt.xlim([-5, 295])
-    plt.ylim([-5, 295])
+    plt.xlim([ xlimL, xlimR])
+    plt.ylim([ ylimB, ylimT])
     plt.grid(b=True, which='major')
 
     # Setup call-back function
     qObj = GetQuiverObject( ax, gV, gfile )
     qObj.objPick()
 
-    bounds = ax.viewLim.bounds
-    print( ' View Limit Bound : ', bounds  )
+    #bounds = ax.viewLim.bounds
+    #print( ' View Limit Bound : ', bounds  )
 
     SetQuiver( ax, gV, gV[0][0], gV[0][1]  )
 
