@@ -243,7 +243,7 @@ class GCodeGenerator :
         gfilename = input('Generated GCode filename : ')
         if gfilename == '':
             gfilename = 'gout.gcode'
-        gfile = open(gfilename, 'w')
+        gfile = open( gfilename , 'w')
 
         nPoint = len(self.rx)
         print(' total steps %d ' % ( nPoint ))

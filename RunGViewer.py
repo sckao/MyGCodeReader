@@ -155,7 +155,6 @@ for line in f:
             else :
                 rho = 0.
 
-
         # output            x, y, z, dr, rho, E, dL
         if i == 0 :
             fout.write( '; Change Layer Height = {:.3f} \n'.format(zL) )
