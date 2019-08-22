@@ -44,6 +44,9 @@ def GetProfile( gV, nSample = 1280, idx=0 ) :
         za.append( gV[k][2] )
         k = k + 1
 
+    para = np.polyfit(xa, ya, 1)
+    print( para )
+
     ave_z = np.average( za )
     std_z = np.std( za )
     stat = [ave_z, std_z]

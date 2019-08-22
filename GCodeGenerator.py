@@ -288,6 +288,7 @@ class GCodeGenerator :
 
             if abs(self.rs[i]) == 2 :
                 gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f\n' %( xVal, yVal, zVal, eVal ) )
+                gfile.write( 'G4 P500\n' )
 
             # status 3 and 4 is for gliding, slow down and giving lower extrude amount
             if self.rs[i] == 3 :

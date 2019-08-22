@@ -225,7 +225,7 @@ class Rectangle :
                 ry.append( self.v[i] )
                 rz.append( zVal )
                 rs.append( -2 )
-                rE.append( 0.3  )
+                rE.append( 0.1  )
             else :
                 dx = self.u[i] - self.u[i-1]
                 dy = self.v[i] - self.v[i-1]
@@ -289,12 +289,13 @@ class Rectangle :
     def ConstructBMW(self, rx =[], ry= [], rz = [] , rE = [], rS = [] ):
 
         h = self.height
-        theX0 = 10
+        theX0 = 15
         theY0 = 87
         dY0   = 15
 
         i = 0
-        z = self.ts + self.bh + self.fh + 6.25
+        #z = self.ts + self.bh + self.fh + 6.25
+        z = self.ts + self.bh + self.fh
         self.Setup(127,54,0,1, theX0, theY0 )
         self.AddSkirt( 5, 1 )
         self.GetResult( z, rx, ry, rz, rE, rS )
