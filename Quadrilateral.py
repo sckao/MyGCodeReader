@@ -316,6 +316,7 @@ class Rectangle :
                 if i%2 == 0 :
                     self.XZigzagFill( 1 )
                     self.GetResult( z, rx, ry, rz, rE, rS )
+                    #
                     Ending( 5, rS,rx, ry, rz, rE )
                     self.u = []
                     self.v = []
@@ -331,14 +332,14 @@ class Rectangle :
 
     def Configure(self):
 
-        self.length = input('Length (127 mm): ')
+        self.length = input('Length (20 mm): ')
         if self.length == '':
-            self.length = 127
+            self.length = 20
         else:
             self.length = float(self.length)
-        self.width = input('Width (9 mm): ')
+        self.width = input('Width (10 mm): ')
         if self.width == '':
-            self.width = 9
+            self.width = 10
         else:
             self.width = float(self.width)
         self.phi = input(' Angle (0~ 2pi, default : 0) :')
@@ -357,6 +358,54 @@ class Rectangle :
         else:
             self.nLayer = int(self.nLayer)
 
+        self.x0 = input('Initial X Position (100): ')
+        if self.x0 == '':
+            self.x0 = 100.
+        else:
+            self.x0 = float(self.x0)
+        self.y0 = input('Initial Y Position (100): ')
+        if self.y0 == '':
+            self.y0 = 100.
+        else:
+            self.y0 = float(self.y0)
+
+
+    def CustomConstruction(self, rx =[], ry= [], rz = [] , rE = [], rS = [] ):
+
+        self.Configure()
+
+        i = 0
+        z = self.ts + self.bh + self.fh
+        # 5 mm away from the edge
+        self.AddSkirt( 5, 1 )
+        self.GetResult( z, rx, ry, rz, rE, rS )
+        self.u = []
+        self.v = []
+
+        for i in range( self.nLayer ) :
+
+            self.AddShell( 1 )
+            self.GetResult( z, rx, ry, rz, rE, rS )
+            self.u = []
+            self.v = []
+            print(' Layer %d = %.3f ' %(i,z ))
+            if i%2 == 0 :
+                self.XZigzagFill( 1 )
+                self.GetResult( z, rx, ry, rz, rE, rS )
+                self.u = []
+                self.v = []
+            else :
+                self.YZigzagFill( 1 )
+                self.GetResult( z, rx, ry, rz, rE, rS )
+                self.u = []
+                self.v = []
+
+
+            z = z + self.bh
+
+        #Ending( 5, rS,rx, ry, rz, rE )
+
+
 
 rx = []
 ry = []
@@ -365,10 +414,8 @@ rE = []
 rS = []
 
 recObj = Rectangle(20, 5 , 1, math.pi)
-#recObj.Configure()
-#recObj.XZigzagFill( 1 )
-#recObj.YZigzagFill( 1 )
-recObj.ConstructBMW(rx, ry, rz, rE, rS)
+#recObj.ConstructBMW(rx, ry, rz, rE, rS)
+recObj.CustomConstruction( rx, ry, rz, rE, rS )
 
 # Output GCode
 gc = GCodeGenerator( rS, rx, ry, rz, rE, recObj.Fval )
