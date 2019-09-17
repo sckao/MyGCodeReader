@@ -15,7 +15,8 @@ class Rectangle :
     bh = 0.5
     ts = 0.35
     fh = 0.1
-    rd = 2.0 # retraction distance
+    rd = 10.0 # retraction distance
+    zOffset = 0. # addition Z height to offset the z0
 
     nLayer = 1
 
@@ -35,6 +36,8 @@ class Rectangle :
         self.shelled = False
         self.x0 = 0
         self.y0 = 0
+        self.u = []
+        self.v = []
 
     def Create(self):
 
@@ -207,25 +210,36 @@ class Rectangle :
                 self.v.append( y )
 
 
-    def GetResult(self, zVal = 0, rx = [], ry= [], rz = [], rE = [], rs= [] ):
+    def GetResult(self, zVal = 0, rx = [], ry= [], rz = [], rE = [], rs= [], retract = True ):
 
         for i in range( len(self.u) ) :
 
             # Calculate Eval
-            eval = 0
+            prime_eval = 3
+            retract_eval = -3
+            shift_eval = 0
             if i == 0 :
-                eval = 0
-                rx.append( self.u[i] )
-                ry.append( self.v[i] )
-                rz.append( zVal + self.rd )
-                rs.append( 0 )
-                rE.append( -1 )
 
-                rx.append( self.u[i] )
-                ry.append( self.v[i] )
-                rz.append( zVal )
-                rs.append( -2 )
-                rE.append( 0.1  )
+                if retract :
+                    rx.append( self.u[i] )
+                    ry.append( self.v[i] )
+                    rz.append( zVal + self.rd )
+                    rs.append( 0 )
+                    rE.append( shift_eval )
+
+                    rx.append( self.u[i] )
+                    ry.append( self.v[i] )
+                    rz.append( zVal )
+                    rs.append( -2 )
+                    rE.append( prime_eval  )
+                else :
+                    rx.append( self.u[i] )
+                    ry.append( self.v[i] )
+                    rz.append( zVal )
+                    rs.append( 0 )
+                    rE.append( shift_eval )
+
+
             else :
                 dx = self.u[i] - self.u[i-1]
                 dy = self.v[i] - self.v[i-1]
@@ -240,11 +254,12 @@ class Rectangle :
 
             i = i+1
 
-        rx.append( self.u[i-1] )
-        ry.append( self.v[i-1] )
-        rz.append( zVal + self.rd )
-        rs.append( 2 )
-        rE.append( -1 )
+        if retract :
+            rx.append( self.u[i-1] )
+            ry.append( self.v[i-1] )
+            rz.append( zVal + self.rd )
+            rs.append( 2 )
+            rE.append( retract_eval )
 
     def Construct3D(self, rx =[], ry= [], rz = [] , rE = [], rS = [] ):
 
@@ -317,7 +332,7 @@ class Rectangle :
                     self.XZigzagFill( 1 )
                     self.GetResult( z, rx, ry, rz, rE, rS )
                     #
-                    Ending( 5, rS,rx, ry, rz, rE )
+                    Ending( 7, rS,rx, ry, rz, rE )
                     self.u = []
                     self.v = []
                 else :
@@ -332,16 +347,24 @@ class Rectangle :
 
     def Configure(self):
 
-        self.length = input('Length (20 mm): ')
+        self.length = input('Length (60 mm): ')
         if self.length == '':
-            self.length = 20
+            self.length = 60
         else:
             self.length = float(self.length)
-        self.width = input('Width (10 mm): ')
+
+        self.width = input('Width (15 mm): ')
         if self.width == '':
-            self.width = 10
+            self.width = 15
         else:
             self.width = float(self.width)
+
+        self.zOffset = input('Z Offset (0 mm): ')
+        if self.zOffset == '':
+            self.zOffset = 0
+        else:
+            self.zOffset = float(self.zOffset)
+
         self.phi = input(' Angle (0~ 2pi, default : 0) :')
         if self.phi == '':
             self.phi = 0
@@ -373,30 +396,36 @@ class Rectangle :
     def CustomConstruction(self, rx =[], ry= [], rz = [] , rE = [], rS = [] ):
 
         self.Configure()
+        retract = False
 
         i = 0
-        z = self.ts + self.bh + self.fh
+        z = self.ts + self.bh + self.fh + self.zOffset
         # 5 mm away from the edge
         self.AddSkirt( 5, 1 )
-        self.GetResult( z, rx, ry, rz, rE, rS )
+        self.GetResult( z, rx, ry, rz, rE, rS, retract )
+        Ending( 15, rS,rx, ry, rz, rE )
         self.u = []
         self.v = []
 
         for i in range( self.nLayer ) :
 
+
             self.AddShell( 1 )
-            self.GetResult( z, rx, ry, rz, rE, rS )
+            self.GetResult( z, rx, ry, rz, rE, rS, retract )
+            Ending( 5, rS,rx, ry, rz, rE )
             self.u = []
             self.v = []
             print(' Layer %d = %.3f ' %(i,z ))
             if i%2 == 0 :
                 self.XZigzagFill( 1 )
                 self.GetResult( z, rx, ry, rz, rE, rS )
+                Ending( 10, rS,rx, ry, rz, rE )
                 self.u = []
                 self.v = []
             else :
                 self.YZigzagFill( 1 )
                 self.GetResult( z, rx, ry, rz, rE, rS )
+                Ending( 10, rS,rx, ry, rz, rE )
                 self.u = []
                 self.v = []
 
@@ -419,6 +448,7 @@ recObj.CustomConstruction( rx, ry, rz, rE, rS )
 
 # Output GCode
 gc = GCodeGenerator( rS, rx, ry, rz, rE, recObj.Fval )
+
 #gc.SetGlideSpeed( 2000, 3000 )
 #gc.Gliding( 0.05, 0.1 , 0.05, 0.1, rS, rx, ry, rz, rE )
 
@@ -435,8 +465,8 @@ ax.set_xlabel('x')
 ax.set_ylabel('y')
 
 # Plot XY limit and grid
-plt.xlim([30, 230])
-plt.ylim([100, 300])
+plt.xlim([20, 200])
+plt.ylim([20, 200])
 plt.grid(b=True, which='major')
 
 # Start Routing (x,y) -> (xt,yt) -> (x,y)

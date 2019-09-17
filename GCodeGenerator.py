@@ -44,11 +44,18 @@ def BreakSegment( x1,y1, x2,y2, ratio ):
 def Ending( flength, rs = [], rx = [], ry = [], rz = [], rE = [] ):
 
     j = len( rs ) - 1
+    print(" Ending section (%d) " %(j) )
     for i in range( len(rs) ) :
 
         L = dLength( rx[j], ry[j], rx[j-1], ry[j-1] )
+        dz = rz[j] - rz[j-1]
+        if L == 0 and dz > 0 :
+            print('1. this is retraction ')
+            j = j -1
+            continue
 
         if L > flength :
+            print('2. Break ')
             bp = BreakSegment( rx[j-1], ry[j-1], rx[j], ry[j], flength/L )
             ## re-calculate the E Value for the 1st segment
             dL = dLength(rx[j-1], ry[j-1], bp[0], bp[1] )
@@ -67,6 +74,7 @@ def Ending( flength, rs = [], rx = [], ry = [], rz = [], rE = [] ):
             print(' ===> ( %.3f, %.3f) -> ( %.3f, %.3f) ' %( rx[j + 1], ry[j + 1], rx[j], ry[j]))
             break
         else :
+            print('3. Slow down ')
             rE[j] = 0
             rs[j] = 9
 
@@ -273,9 +281,9 @@ class GCodeGenerator :
                 gfile.write('M106 S0\n')
                 gfile.write('G28                            ; Home \n')
                 gfile.write('G92 E0                         ; Reset E \n')
-                gfile.write('M163 S0 P1                     ; Set extruder mix ratio B for 1:1\n')
-                gfile.write('M163 S1 P1                     ; Set extruder mix ratio A for 1:1\n')
-                gfile.write('M163 S2 P1                     ; Enable Extruder \n')
+                gfile.write('M163 S0 P4706                     ; Set extruder mix ratio B for 1:1\n')
+                gfile.write('M163 S1 P5294                     ; Set extruder mix ratio A for 1:1\n')
+                gfile.write('M163 S2 P0                     ; Enable Extruder \n')
                 gfile.write('T0\n')
                 gfile.write('G1 Z15.0\n')
                 gfile.write('G0 X%.3f Y%.3f F%.0f\n' %( xVal, yVal, fVal ) )
@@ -286,8 +294,11 @@ class GCodeGenerator :
             if self.rs[i] == 0 :
                 gfile.write( 'G0 X%.3f Y%.3f Z%.3f E%.4f\n' %( xVal, yVal, zVal, eVal  ) )
 
-            if abs(self.rs[i]) == 2 :
+            if self.rs[i] == -2 :
                 gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f\n' %( xVal, yVal, zVal, eVal ) )
+
+            if self.rs[i] == 2 :
+                gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%.0f\n' %( xVal, yVal, zVal, eVal, fVal ) )
                 gfile.write( 'G4 P500\n' )
 
             # status 3 and 4 is for gliding, slow down and giving lower extrude amount
@@ -303,8 +314,9 @@ class GCodeGenerator :
 
 
             if i == (nPoint -1) :
-                gfile.write('G1 E-1.5000\n')
-                gfile.write('G0 Z%.3f\n' %(self.rz[i]+10))
+                gfile.write('G1 E-5.000\n')
+                gfile.write('G4 P2000\n')
+                gfile.write('G0 Z%.3f\n' %(self.rz[i]+50))
                 gfile.write('G0 X0.0 Y0.0\n')
                 gfile.write('M104 S0\n')       # Disable Extruder
                 gfile.write('M84 S0\n')        # Disable Motor
