@@ -54,9 +54,11 @@ class Polygrams:
     Fval = 6000.
     Eval = Fval*rho
 
-    def __init__(self, n_ = 5 ,  r_ = 10 ):
+    # objType = 0 ; polygon , objType = 1 : polygram
+    def __init__(self, n_ = 5 ,  r_ = 10, objType = 0 ):
         self.n = int(n_)
         self.r = float(r_)
+        self.objType = objType
         self.delta = -1.*math.pi / 2
         self.theta = 2.*math.pi / self.n
         self.Eval = self.rho * self.Fval
@@ -64,7 +66,7 @@ class Polygrams:
         self.gFval2 = self.Fval
 
 
-    def SetParameters(self, n_, r_, delta_  = -1.*math.pi /2 ):
+    def SetParameters(self, n_ , r_ , delta_  = -1.*math.pi /2 ):
         self.n = int(n_)
         self.r = float(r_)
         self.delta = delta_
@@ -364,6 +366,7 @@ class Polygrams:
         self.Create( self.n, rSkirt, da_ )
         self.GetResult(rs, rx, ry, rz, zVal, rE  )
 
+'''
 
 polyObj = Polygrams()
 polyObj.Configure()
@@ -433,7 +436,7 @@ for i in range( nPoint -1 ) :
     y_ = ry[i+1]
 
 plt.show()
-
+'''
 
 
 
