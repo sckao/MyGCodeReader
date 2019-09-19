@@ -19,6 +19,7 @@ class PolygonFill:
         self.r = radius
         self.angle = angle
         self.pos = []
+        self.beadwidth = 1.5
 
 
     def create(self):
@@ -91,55 +92,75 @@ class PolygonFill:
         xc = x0 + (ds/2)
         yc = y0
 
+        # Only add the initial point if this is the starting point
         if len(pos) < 1 :
             pos.append( [x0,y0] )
         j = n
+        max_dy = 0
+        # This part only fill intermediate points
         for i in range(n) :
+
+            # upper part of arc
             if ds > 0 :
                 j = n - i
+            # bottom part of arc
             if ds < 0 :
                 j = -1*(i+1)
             dx = r*math.cos( theta*j )
             dy = r*math.sin( theta*j )
 
+            if abs(dy) > max_dy :
+                max_dy = abs(dy)
+
             x = xc + dx
             y = yc + dy
-            print(' j=%d , theta = %.3f, x=%.3f y= %.3f' %(j, theta*j, x, y))
+            print('   (j=%d) , theta = %.3f, x=%.3f y= %.3f' %(j, theta*j, x, y))
             pos.append( [x,y] )
 
+        # adding ending point
         pos.append( [x0 + ds ,y0] )
         x0 = x0+ds
         y0 = y0
+        return max_dy
 
 
-    def fillMethod(self,x0,y0, Lx, ds, dL, n, m ):
+    def createChain(self,x0,y0, Lx, ds, dL, n, m ):
 
-        i = 0
+        i = 1
         arcs = []
         x = x0
         y = y0
-        while  Lx >= ds*(i+1) :
+        h1 = 0
+        arcs.append([x,y])
+        x = x0 +dL
+        y = y0
+        # adding the first segment
+        arcs.append([x,y])
+        while  Lx >= (ds+dL)*i :
 
-            self.createArc( x, y, ds, n, arcs )
-            if ds*(i+1) < Lx :
+            h1 = self.createArc( x, y, ds, n, arcs )
+            if (ds+dL)*(i+1) <= Lx :
                 x = arcs[-1][0] + dL
                 y = arcs[-1][1]
                 arcs.append( [x, y] )
+                print('  -- continue ')
             else :
                 x = arcs[-1][0]
                 y = arcs[-1][1]
                 arcs.append( [x, y] )
+                print('  -- end  ')
 
             print( ' [%d] xy = (%.3f , %.3f)' %(i, x, y))
-
             i = i+1
 
-        y = y-0.5
-        arcs.append( [x, y])
 
+        y = y - self.beadwidth
+        arcs.append( [x, y])
+        i = i-1
+        h2 = 0
         while i > 0 :
 
-            self.createArc( x,y, -1*ds, m, arcs )
+            h2 = self.createArc( x,y, -1*ds, m, arcs )
             if i > 1 :
                 x = arcs[-1][0] -dL
                 y = arcs[-1][1]
@@ -149,19 +170,88 @@ class PolygonFill:
                 y = arcs[-1][1]
                 arcs.append( [x, y] )
 
-            print( ' -> [%d] xy = (%.3f , %.3f)' %(i, x, y))
             i = i-1
+            print( ' -> [%d] xy = (%.3f , %.3f)' %(i, x, y))
+
+        x = x -dL
+        y = y
+        arcs.append([x,y])
+        h = h1+h2
+        return arcs, h
+
+    def unitSize(self, ds, dL, n, m):
+        arcs, h = self.createChain( 0, 0,dL+ds, ds, dL, n, m)
+        width = ds
+        height = h + self.beadwidth
+        return width, height
+
+    def FillArea(self, xV, yV, LV, ds, dL, n, m):
+
+        iniX = xV[0]
+        iniY = yV[0]
+        x = []
+        y = []
+        for i in range( len(LV) ) :
+
+            print(' Printing Row %d' %(i))
+            if xV[i] > iniX :
+                arc = []
+                arc.append( [ iniX, yV[i]])
+                self.getResult( arc, x,y)
+            if xV[i] < iniX :
+                arc = []
+                iniY = y[-1]
+                arc.append( [ xV[i], iniY])
+                self.getResult( arc, x,y)
+
+            iniX = xV[i]
+            iniY = yV[i]
+            if i%2 == 0 :
+                arcs, h = self.createChain( iniX, iniY, LV[i],ds, dL, n, m)
+                self.getResult( arcs, x,y)
+            else :
+                arcs, h = self.createChain( iniX, iniY, LV[i],ds, dL, m, n)
+                self.getResult( arcs, x,y)
+
+        return x, y
 
 
-        return arcs
 
+
+
+##################################
+#       Testing PolygonFill      #
+##################################
 
 x= []
 y= []
 
 polychain = PolygonFill(4,10,0)
-arcs = polychain.fillMethod(0,5,40,10, 5, 2, 2)
-polychain.getResult( arcs, x,y)
+iniX = 0
+iniY = 5
+n_up = 1
+n_low = 1
+ds = 11
+dL = 4
+
+w0 , h0 = polychain.unitSize(ds,dL,n_up, n_low)
+print( 'Unit size = %.3f , %.3f' %(w0, h0))
+
+LV = [50,25,60,78]
+xV = [0,15,15,30]
+yV = []
+for i in range(4):
+    yV.append(iniY)
+    iniY = iniY - h0 - (polychain.beadwidth*2)
+
+x, y = polychain.FillArea(xV, yV, LV, ds, dL, n_up, n_low)
+#arcs, h = polychain.createChain( iniX, iniY,40,ds, dL, n_up, n_low)
+#polychain.getResult( arcs, x,y)
+#iniY = iniY - h - (polychain.beadwidth*2)
+#arcs, h = polychain.createChain( iniX, iniY,50,ds, dL, n_low, n_up)
+#polychain.getResult( arcs, x,y)
+
+
 
 '''
 poly = PolygonFill(3,10., math.pi/2)
@@ -185,8 +275,8 @@ ax.set_xlabel('x')
 ax.set_ylabel('y')
 
 # Plot XY limit and grid
-plt.xlim([-5, 55])
-plt.ylim([-15, 15])
+plt.xlim([-5, 125])
+plt.ylim([-55, 15])
 plt.grid(b=True, which='major')
 ax.scatter( x,  y,  s=50, marker= 'o', facecolors='red', edgecolors='red' )
 
@@ -199,7 +289,7 @@ for i in range( nPoint -1 ) :
     dX = x[i+1] - x_
     dY = y[i+1] - y_
     # print(" i= " + str(i) + "( " + str( i[0]) + ", " + str(i[1]) + ")" )
-    ax.quiver(x_, y_, dX, dY, angles='xy', scale_units='xy', scale=1, color='green', picker=5)
+    ax.quiver(x_, y_, dX, dY, angles='xy', scale_units='xy', scale=1, color='green', picker=2)
 
     x_ = x[i+1]
     y_ = y[i+1]
