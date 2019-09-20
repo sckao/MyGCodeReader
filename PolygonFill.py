@@ -83,7 +83,8 @@ class PolygonFill:
             xlist.append( pos[i][0] )
             ylist.append( pos[i][1] )
 
-
+    # Create upper or lower part of the polygon chains
+    # ds < 0 is for the lower part
     def createArc(self, x0, y0, ds, n, pos):
 
         theta = math.pi / (n+1)
@@ -124,7 +125,8 @@ class PolygonFill:
         return max_dy
 
 
-    def createChain(self,x0,y0, Lx, ds, dL, n, m ):
+    # k is number of layer for the polygon
+    def createChain(self,x0,y0, Lx, ds, dL, n, m, k = 1 ):
 
         i = 1
         arcs = []
@@ -153,8 +155,8 @@ class PolygonFill:
             print( ' [%d] xy = (%.3f , %.3f)' %(i, x, y))
             i = i+1
 
-
-        y = y - self.beadwidth
+        # shift downward
+        y = y - (self.beadwidth*(2*k-1))
         arcs.append( [x, y])
         i = i-1
         h2 = 0
@@ -185,7 +187,7 @@ class PolygonFill:
         height = h + self.beadwidth
         return width, height
 
-    def FillArea(self, xV, yV, LV, ds, dL, n, m):
+    def FillArea(self, xV, yV, LV, ds, dL, n, m, k = 1):
 
         iniX = xV[0]
         iniY = yV[0]
@@ -207,15 +209,84 @@ class PolygonFill:
             iniX = xV[i]
             iniY = yV[i]
             if i%2 == 0 :
-                arcs, h = self.createChain( iniX, iniY, LV[i],ds, dL, n, m)
+                arcs, h = self.createChain( iniX, iniY, LV[i],ds, dL, n, m, k)
                 self.getResult( arcs, x,y)
             else :
-                arcs, h = self.createChain( iniX, iniY, LV[i],ds, dL, m, n)
+                arcs, h = self.createChain( iniX, iniY, LV[i],ds, dL, m, n, k)
                 self.getResult( arcs, x,y)
 
         return x, y
 
+    # FIXME : Still buggy ... need to be fixed
+    def FillAreaN(self, xV, yV, LV, ds, dL, n, m, k = 1):
 
+        iniX = xV[0]
+        iniY = yV[0]
+        x = []
+        y = []
+        for j in range(k) :
+
+            nL = k -j
+            iniY = iniY - (j*self.beadwidth)
+            angle = (math.pi/4)*(n/(n+1))
+            ds = ds - j*(self.beadwidth/math.cos(angle))
+            dL = dL - j*(2*self.beadwidth*math.tan(angle))
+            for i in range( len(LV) ) :
+                print(' Printing Row %d' %(i))
+                if xV[i] > iniX :
+                    arc = []
+                    arc.append( [ iniX, yV[i]])
+                    self.getResult( arc, x,y)
+                if xV[i] < iniX :
+                    arc = []
+                    iniY = y[-1]
+                    arc.append( [ xV[i], iniY])
+                    self.getResult( arc, x,y)
+
+                iniX = xV[i]
+                iniY = yV[i]
+                if i%2 == 0 :
+                    arcs, h = self.createChain( iniX, iniY, LV[i],ds, dL, n, m, nL)
+                    self.getResult( arcs, x,y)
+                else :
+                    arcs, h = self.createChain( iniX, iniY, LV[i],ds, dL, m, n, nL)
+                    self.getResult( arcs, x,y)
+
+        return x, y
+
+
+
+
+    # Not complete yet
+    def partition(self, shell, ds, dL, n, m ):
+
+        # Find the min x,y and max x,y
+        max_x = -9999.
+        max_y = -9999.
+        min_x = 9999.
+        min_y = 9999.
+        for i in range( len(shell)) :
+
+            x = shell[i][0]
+            y = shell[i][0]
+            if x > max_x :
+                max_x = x
+            if x < min_x :
+                min_x = x
+            if y > max_y :
+                max_y = y
+            if y < min_y :
+                min_y = y
+
+        wShell = max_x - min_x
+        hShell = max_y - min_y
+
+        # Find the unit width(w0) and height(h0)
+        w0 , h0 = self.unitSize( ds, dL, n, m)
+
+        #
+        nw = int(wShell/w0)
+        nh = int(hShell/h0)
 
 
 
@@ -229,22 +300,23 @@ y= []
 polychain = PolygonFill(4,10,0)
 iniX = 0
 iniY = 5
-n_up = 1
-n_low = 1
-ds = 11
-dL = 4
+n_up = 3
+n_low = 3
+ds = 10
+dL = 5
+nLayer = 2
 
 w0 , h0 = polychain.unitSize(ds,dL,n_up, n_low)
 print( 'Unit size = %.3f , %.3f' %(w0, h0))
 
-LV = [50,25,60,78]
+LV = [50,30,60,78]
 xV = [0,15,15,30]
 yV = []
 for i in range(4):
     yV.append(iniY)
-    iniY = iniY - h0 - (polychain.beadwidth*2)
+    iniY = iniY - h0 - ((polychain.beadwidth)*(2*nLayer -1 ))
 
-x, y = polychain.FillArea(xV, yV, LV, ds, dL, n_up, n_low)
+x, y = polychain.FillAreaN(xV, yV, LV, ds, dL, n_up, n_low, nLayer)
 #arcs, h = polychain.createChain( iniX, iniY,40,ds, dL, n_up, n_low)
 #polychain.getResult( arcs, x,y)
 #iniY = iniY - h - (polychain.beadwidth*2)
