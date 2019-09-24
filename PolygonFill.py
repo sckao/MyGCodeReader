@@ -1,7 +1,7 @@
 import math
 import numpy as np
 import matplotlib.pyplot as plt
-from Polygram import Polygrams
+from GCodeGenerator import GCodeGenerator
 
 def sortX( vec ):
     return vec[0]
@@ -11,77 +11,94 @@ def sortY( vec ):
 
 class PolygonFill:
 
+    # Tip speace (ts) and Bead height (bh) and first layer adjustment (fh)
+    bh = 0.5
+    ts = 0.35
+    fh = 0.1
 
-    def __init__(self, nside , radius, angle ):
+    # Linear density ( or Flow rate )
+    rho = 0.75
+    Fval = 6000.
+    Eval = Fval*rho
+
+
+    def __init__( self ):
 
         # n must be >=  3
-        self.n = nside
-        self.r = radius
-        self.angle = angle
         self.pos = []
         self.beadwidth = 0.75
-
-
-    def create(self):
-
-        # starting angle for the polygon
-        polyObj = Polygrams()
-        polyObj.Create( self.n , self.r, self.angle  )
-
-        for i in range( self.n) :
-
-            self.pos.append( [ polyObj.x[i], polyObj.y[i]] )
+        self.u = []
+        self.v = []
+        self.z = []
+        self.s = []
 
 
 
-    def shiftCopy(self, pos , dx, dy):
-
-        cp = []
-        for i in range( len( pos) ) :
-
-            x = pos[i][0] + dx
-            y = pos[i][1] + dy
-            cp.append( [x,y] )
-
-        return cp
-
-
-    def imageCopy(self, pos, XorY = 'x'  ):
-
-        minY = pos[0][1]
-        maxX = pos[0][0]
-        for i in range( len(pos) ):
-
-            if pos[i][1] < minY :
-                minY = pos[i][1]
-
-            if pos[i][0] > maxX :
-                maxX = pos[i][0]
-
-
-        cp = []
-        for i in range( len(pos) ):
-
-            dy = pos[i][1] - minY
-            dx = maxX - pos[i][0]
-            if  XorY == 'y' or XorY == 'Y' :
-                x = pos[i][0]
-                y = pos[i][1] - (dy*2)
-                cp.append( [ x,y ] )
-            if  XorY == 'x' or XorY == 'X' :
-                x = pos[i][0] + (2*dx)
-                y = pos[i][1]
-                cp.append( [ x,y ] )
-
-        return cp
-
-    def getResult(self, pos= [], xlist=[], ylist=[] ):
+    def getResult(self, pos= [], xlist=[], ylist=[], z=0, s=1 ):
 
 
         for i in range( len(pos)) :
 
             xlist.append( pos[i][0] )
             ylist.append( pos[i][1] )
+            self.u.append( pos[i][0] )
+            self.v.append( pos[i][1] )
+            self.z.append( z )
+            self.s.append( s )
+
+    def reset(self):
+
+        self.u = []
+        self.v = []
+        self.z = []
+        self.s = []
+
+
+    def getData4Gcode(self, rx=[], ry=[], rz=[],rs=[], rE=[], retract = False ):
+
+        eVal = 0
+        for i in range(len(self.s)) :
+
+            if i == 0:
+                eVal = -1.
+
+                # Adding retraction
+                if len(rx) > 0 and retract :
+                    rx.append( rx[ -1 ] )
+                    ry.append( ry[ -1 ] )
+                    rz.append( rz[ -1 ] + 2 )
+                    rE.append( eVal )
+                    rs.append( 2 )
+                    rx.append(self.u[i])
+                    ry.append(self.v[i])
+                    rz.append(self.z[-1] + 2 )
+                    rE.append( eVal )
+                    rs.append( 0 )
+                    rx.append(self.u[i])
+                    ry.append(self.v[i])
+                    rz.append(self.z[i] )
+                    rE.append( 0.1 )
+                    rs.append( -2 )
+                else :
+                    rx.append(self.u[i])
+                    ry.append(self.v[i])
+                    rz.append(self.z[i] )
+                    rE.append( 0.0 )
+                    rs.append( 0 )
+
+            else :
+                dx = self.u[i] - self.u[i-1]
+                dy = self.v[i] - self.v[i-1]
+                dl = math.sqrt( (dx*dx) + (dy*dy) )
+                dt = dl / self.Fval
+                eVal = self.Eval * dt
+
+                rx.append(self.u[i])
+                ry.append(self.v[i])
+                rz.append(self.z[i] )
+                rE.append( eVal )
+                rs.append( 1 )
+
 
     # Create upper or lower part of the polygon chains
     # ds < 0 is for the lower part
@@ -120,30 +137,36 @@ class PolygonFill:
 
 
     # k is number of layer for the polygon
+    # x0,y0 :  starting position
+    # Lx : length of the polygon chain
+    # ds : diameter of the polygon, dL : spacing between polygons
+    # n,m : number of points in upper or lower arch
     def createChain(self,x0,y0, Lx, ds, dL, n, m, k = 1 ):
 
+        # Setup parameters
         i = 1
         arcs = []
-        #angle = (math.pi/4)*(n/(n+1))
         d = self.beadwidth
         angle1 = math.pi/((n+1)*2)
         angle2 = math.pi/((m+1)*2)
         cor =  (d/math.cos(angle1)) - (d*math.tan(angle1))
 
+        # start routing
+        # adding the first segment
         x = x0
         y = y0 + ((k-1)*d)
         h1 = 0
         arcs.append([x,y])
-        print( ' *  Start from xy = (%.3f , %.3f)' %( x, y))
         x = x0 + dL - ((k-1)*cor)
         y = y0 + ((k-1)*d)
-        # adding the first segment
         arcs.append([x,y])
-        print( ' ** Start from xy = (%.3f , %.3f)' %( x, y))
+
+        # used for constructing arc
         xc = x0 + dL + (ds/2)
         yc = y0
         while  Lx >= (ds+dL)*i :
 
+            # radius to construct the polygon
             r = ds + ((k-1)*d*2/math.cos(angle1))
 
             print(" (%d) xc,yc,r =  %.3f, %.3f , %.3f" %(i, xc,yc, r))
@@ -152,23 +175,17 @@ class PolygonFill:
                 x = x0 + (dL+ds)*i + ((k-1)*cor)
                 y = y0 + ((k-1)*d)
                 arcs.append( [x, y] )
-                print( ' -- segment[%d] start xy = (%.3f , %.3f)' %(i, x, y))
                 x = arcs[-1][0] + dL - ((k-1)*cor*2)
                 y = y0 + ((k-1)*d)
                 arcs.append( [x, y] )
-                print( ' -- segment[%d] end xy = (%.3f , %.3f)' %(i, x, y))
-                print('  -- continue ')
             else :
                 x = x0 + (dL+ds)*i + ((k-1)*cor)
                 y = y0 + ((k-1)*d)
                 arcs.append( [x, y] )
-                print( ' == segment[%d] end xy = (%.3f , %.3f)' %(i, x, y))
                 x = arcs[-1][0] + dL - ((k-1)*cor) + ((k-1)*d)
                 y = y0 + ((k-1)*d)
                 arcs.append( [x, y] )
-                print('  -- end  ')
 
-            print( ' [%d] xy = (%.3f , %.3f)' %(i, x, y))
             xc = xc + dL + ds
             i = i+1
 
@@ -191,26 +208,18 @@ class PolygonFill:
             print(" (%d) xc,yc,r =  %.3f, %.3f , %.3f" %(i, xc,yc, r))
             h2 = self.createArc( xc,yc, r, m, arcs )
             if i > 1 :
-                #x = arcs[-1*(m+1)][0] - ds
-                #y = arcs[-1*(m+1)][1]
                 x = x - ds - ((k-1)*cor*2)
                 y = y0 -d - ((k-1)*d)
                 arcs.append( [x, y] )
-                print( ' -- segment[%d] start xy = (%.3f , %.3f)' %(i, x, y))
-                #x = arcs[-1][0] -dL
-                #y = arcs[-1][1]
+
                 x = x - dL + ((k-1)*cor*2)
                 y = y0 - d - ((k-1)*d)
-                print( ' -- segment[%d] end xy = (%.3f , %.3f)' %(i, x, y))
                 arcs.append( [x, y] )
             else :
-                #x = arcs[-1*(m+1)][0] - ds
-                #y = arcs[-1*(m+1)][1]
                 x = x  - ds - ((k-1)*cor*2)
                 y = y0 - d - ((k-1)*d)
                 arcs.append( [x, y] )
 
-            print( ' -> [%d] xy = (%.3f , %.3f)' %(i, x, y))
             xc = xc - dL - ds
             i = i-1
             j = j+1
@@ -222,14 +231,14 @@ class PolygonFill:
         h = h1+h2
         return arcs, h
 
-    def unitSize(self, ds, dL, n, m):
-        arcs, h = self.createChain( 0, 0,dL+ds, ds, dL, n, m)
+    def unitSize(self, ds, dL, n, m, k = 1):
+        arcs, h = self.createChain( 0, 0,dL+ds, ds, dL, n, m, k)
         width = ds
         height = h + self.beadwidth
         return width, height
 
 
-    def FillAreaN(self, xV, yV, LV, ds, dL, n, m, k = 1):
+    def FillAreaN(self, xV, yV, LV, ds, dL, n, m, k = 1, z = 0 ):
 
         iniX = xV[0]
         iniY = yV[0]
@@ -245,24 +254,70 @@ class PolygonFill:
                 if xV[i] > iniX :
                     arc = []
                     arc.append( [ iniX, y_start ])
-                    self.getResult( arc, x,y)
-                if xV[i] < iniX :
+                    self.getResult( arc, x,y, z, 0)
+                elif xV[i] < iniX :
                     arc = []
                     iniY = y[-1]
                     arc.append( [ xV[i], iniY])
-                    self.getResult( arc, x,y)
+                    self.getResult( arc, x,y, z, 0)
+                else :
+                    arc = []
+                    arc.append( [ xV[i], yV[i]])
+                    self.getResult( arc, x,y, z, 0)
 
                 # Move to starting point of this row
                 iniX = xV[i]
                 iniY = yV[i]
                 if i%2 == 0 :
                     arcs, h = self.createChain( iniX, iniY, LV[i],ds, dL, n, m, j)
-                    self.getResult( arcs, x,y)
+                    self.getResult( arcs, x,y, z, 1)
                 else :
                     arcs, h = self.createChain( iniX, iniY, LV[i],ds, dL, m, n, j)
-                    self.getResult( arcs, x,y)
+                    self.getResult( arcs, x,y, z, 1)
 
         return x, y
+
+
+    def addSkirt(self, x0, y0, LV, ds, dL, n, m, k, delta = 5 ):
+
+        w0 , h0 = self.unitSize(ds,dL,n, m, k)
+        print( 'Unit size = %.3f , %.3f' %(w0, h0))
+
+        width = max(LV)
+        height = len(LV)*h0
+
+        self.u = []
+        self.v = []
+
+        # point 1
+        x = x0 - delta
+        y = y0 + delta
+        self.u.append( x )
+        self.v.append( y )
+
+        # point2
+        x = x + width + (2*delta)
+        y = y
+        self.u.append( x )
+        self.v.append( y )
+
+        # point3
+        x = x
+        y = y - height - (2*delta)
+        self.u.append( x )
+        self.v.append( y )
+
+        # point4
+        x = x - width - (2*delta)
+        y = y
+        self.u.append( x )
+        self.v.append( y )
+
+        # back to point1
+        x = x
+        y = y + height + (2*delta)
+        self.u.append( x )
+        self.v.append( y )
 
     # Not complete yet
     def partition(self, shell, ds, dL, n, m ):
@@ -298,6 +353,7 @@ class PolygonFill:
 
 
 
+
 ##################################
 #       Testing PolygonFill      #
 ##################################
@@ -305,25 +361,50 @@ class PolygonFill:
 x= []
 y= []
 
-polychain = PolygonFill(4,10,0)
-iniX = 0
-iniY = 5
+rs = []
+rx = []
+ry = []
+rz = []
+rE = []
+
+polychain = PolygonFill()
+iniX = 80
+iniY = 80
 n_up = 2
 n_low = 2
-ds = 15
+ds = 10
 dL = 5
-nLayer = 3
+nLayer = 2
 
-w0 , h0 = polychain.unitSize(ds,dL,n_up, n_low)
-print( 'Unit size = %.3f , %.3f' %(w0, h0))
-LV = [50,30,60,78]
-xV = [0,20,20,0]
+LV = [90,60,90,60,90]
+xV0 = [0,15,0,15,0]
 yV = []
-for i in range(4):
+xV = []
+w0 , h0 = polychain.unitSize(ds,dL,n_up, n_low, nLayer)
+
+polychain.addSkirt(iniX, iniY, LV, ds, dL, n_up, n_low, nLayer, 10)
+polychain.getData4Gcode(rx,ry,rz,rs,rE)
+
+for i in range( len(LV) ):
+    xV.append(iniX + xV0[i] )
     yV.append(iniY)
     iniY = iniY - h0 - ((polychain.beadwidth)*(2*nLayer -1 ))
 
-x, y = polychain.FillAreaN(xV, yV, LV, ds, dL, n_up, n_low, nLayer)
+
+z = 0.95
+polychain.reset()
+x, y = polychain.FillAreaN(xV, yV, LV, ds, dL, n_up, n_low, nLayer, z)
+polychain.getData4Gcode(rx,ry,rz,rs,rE,True)
+
+# Generate GCode
+fVal = 6000
+
+gc = GCodeGenerator( rs, rx, ry, rz, rE, fVal )
+#gc.SetGlideSpeed( polyObj.gFval1, polyObj.gFval2 )
+#gc.SetGlideSpeed( 2000, 3000 )
+#gc.Gliding( 0.06, 0.1 , 0.06, 0.1, rs, rx, ry, rz, rE )
+#gc.Shift( 150, 150, 0 )
+gc.Generate()
 
 '''
 arcs, h = polychain.createChain( iniX, iniY,70,ds, dL, n_up, n_low, 1)
@@ -345,8 +426,8 @@ ax.set_xlabel('x')
 ax.set_ylabel('y')
 
 # Plot XY limit and grid
-plt.xlim([-5, 95])
-plt.ylim([-55, 25])
+plt.xlim([-5, 105])
+plt.ylim([-5, 95])
 plt.grid(b=True, which='major')
 ax.scatter( x,  y,  s=50, marker= 'o', facecolors='red', edgecolors='red' )
 
