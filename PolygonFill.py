@@ -19,7 +19,7 @@ class PolygonFill:
         self.r = radius
         self.angle = angle
         self.pos = []
-        self.beadwidth = 1.5
+        self.beadwidth = 0.75
 
 
     def create(self):
@@ -85,13 +85,10 @@ class PolygonFill:
 
     # Create upper or lower part of the polygon chains
     # ds < 0 is for the lower part
-    def createArc(self, x0, y0, ds, n, pos):
+    def createArc(self, xc, yc, ds, n, pos):
 
         theta = math.pi / (n+1)
         r = abs(ds/2.)
-
-        xc = x0 + (ds/2)
-        yc = y0
 
         # Only add the initial point if this is the starting point
         if len(pos) < 1 :
@@ -99,6 +96,7 @@ class PolygonFill:
         j = n
         max_dy = 0
         # This part only fill intermediate points
+        k = 1
         for i in range(n) :
 
             # upper part of arc
@@ -118,10 +116,6 @@ class PolygonFill:
             print('   (j=%d) , theta = %.3f, x=%.3f y= %.3f' %(j, theta*j, x, y))
             pos.append( [x,y] )
 
-        # adding ending point
-        pos.append( [x0 + ds ,y0] )
-        x0 = x0+ds
-        y0 = y0
         return max_dy
 
 
@@ -130,54 +124,101 @@ class PolygonFill:
 
         i = 1
         arcs = []
+        #angle = (math.pi/4)*(n/(n+1))
+        d = self.beadwidth
+        angle1 = math.pi/((n+1)*2)
+        angle2 = math.pi/((m+1)*2)
+        cor =  (d/math.cos(angle1)) - (d*math.tan(angle1))
+
         x = x0
-        y = y0
+        y = y0 + ((k-1)*d)
         h1 = 0
         arcs.append([x,y])
-        x = x0 +dL
-        y = y0
+        print( ' *  Start from xy = (%.3f , %.3f)' %( x, y))
+        x = x0 + dL - ((k-1)*cor)
+        y = y0 + ((k-1)*d)
         # adding the first segment
         arcs.append([x,y])
+        print( ' ** Start from xy = (%.3f , %.3f)' %( x, y))
+        xc = x0 + dL + (ds/2)
+        yc = y0
         while  Lx >= (ds+dL)*i :
 
-            h1 = self.createArc( x, y, ds, n, arcs )
+            r = ds + ((k-1)*d*2/math.cos(angle1))
+
+            print(" (%d) xc,yc,r =  %.3f, %.3f , %.3f" %(i, xc,yc, r))
+            h1 = self.createArc( xc, yc, r, n, arcs )
             if (ds+dL)*(i+1) <= Lx :
-                x = arcs[-1][0] + dL
-                y = arcs[-1][1]
+                x = x0 + (dL+ds)*i + ((k-1)*cor)
+                y = y0 + ((k-1)*d)
                 arcs.append( [x, y] )
+                print( ' -- segment[%d] start xy = (%.3f , %.3f)' %(i, x, y))
+                x = arcs[-1][0] + dL - ((k-1)*cor*2)
+                y = y0 + ((k-1)*d)
+                arcs.append( [x, y] )
+                print( ' -- segment[%d] end xy = (%.3f , %.3f)' %(i, x, y))
                 print('  -- continue ')
             else :
-                x = arcs[-1][0]
-                y = arcs[-1][1]
+                x = x0 + (dL+ds)*i + ((k-1)*cor)
+                y = y0 + ((k-1)*d)
+                arcs.append( [x, y] )
+                print( ' == segment[%d] end xy = (%.3f , %.3f)' %(i, x, y))
+                x = arcs[-1][0] + dL - ((k-1)*cor) + ((k-1)*d)
+                y = y0 + ((k-1)*d)
                 arcs.append( [x, y] )
                 print('  -- end  ')
 
             print( ' [%d] xy = (%.3f , %.3f)' %(i, x, y))
+            xc = xc + dL + ds
             i = i+1
 
         # shift downward
-        y = y - (self.beadwidth*(2*k-1))
+        y = y - (d*(2*k-1))
         arcs.append( [x, y])
+        x = arcs[-1][0] - dL +  ((k-1)*cor) - ((k-1)*d)
+        arcs.append( [x, y])
+        yc = yc - d
+        xc = xc - dL - ds
         i = i-1
         h2 = 0
+        j = 1
+        cor =  (d/math.cos(angle2)) - (d*math.tan(angle2))
+        print(" >> xc,yc = %.3f, %.3f " %(xc,yc))
         while i > 0 :
 
-            h2 = self.createArc( x,y, -1*ds, m, arcs )
+
+            r = -1*ds - ((k-1)*d*2/math.cos(angle2))
+            print(" (%d) xc,yc,r =  %.3f, %.3f , %.3f" %(i, xc,yc, r))
+            h2 = self.createArc( xc,yc, r, m, arcs )
             if i > 1 :
-                x = arcs[-1][0] -dL
-                y = arcs[-1][1]
+                #x = arcs[-1*(m+1)][0] - ds
+                #y = arcs[-1*(m+1)][1]
+                x = x - ds - ((k-1)*cor*2)
+                y = y0 -d - ((k-1)*d)
+                arcs.append( [x, y] )
+                print( ' -- segment[%d] start xy = (%.3f , %.3f)' %(i, x, y))
+                #x = arcs[-1][0] -dL
+                #y = arcs[-1][1]
+                x = x - dL + ((k-1)*cor*2)
+                y = y0 - d - ((k-1)*d)
+                print( ' -- segment[%d] end xy = (%.3f , %.3f)' %(i, x, y))
                 arcs.append( [x, y] )
             else :
-                x = arcs[-1][0]
-                y = arcs[-1][1]
+                #x = arcs[-1*(m+1)][0] - ds
+                #y = arcs[-1*(m+1)][1]
+                x = x  - ds - ((k-1)*cor*2)
+                y = y0 - d - ((k-1)*d)
                 arcs.append( [x, y] )
 
-            i = i-1
             print( ' -> [%d] xy = (%.3f , %.3f)' %(i, x, y))
+            xc = xc - dL - ds
+            i = i-1
+            j = j+1
 
-        x = x -dL
+        x = x -dL + ((k-1)*cor)
         y = y
         arcs.append([x,y])
+        print( ' ** End at  xy = (%.3f , %.3f)' %( x, y))
         h = h1+h2
         return arcs, h
 
@@ -187,37 +228,7 @@ class PolygonFill:
         height = h + self.beadwidth
         return width, height
 
-    def FillArea(self, xV, yV, LV, ds, dL, n, m, k = 1):
 
-        iniX = xV[0]
-        iniY = yV[0]
-        x = []
-        y = []
-        for i in range( len(LV) ) :
-
-            print(' Printing Row %d' %(i))
-            if xV[i] > iniX :
-                arc = []
-                arc.append( [ iniX, yV[i]])
-                self.getResult( arc, x,y)
-            if xV[i] < iniX :
-                arc = []
-                iniY = y[-1]
-                arc.append( [ xV[i], iniY])
-                self.getResult( arc, x,y)
-
-            iniX = xV[i]
-            iniY = yV[i]
-            if i%2 == 0 :
-                arcs, h = self.createChain( iniX, iniY, LV[i],ds, dL, n, m, k)
-                self.getResult( arcs, x,y)
-            else :
-                arcs, h = self.createChain( iniX, iniY, LV[i],ds, dL, m, n, k)
-                self.getResult( arcs, x,y)
-
-        return x, y
-
-    # FIXME : Still buggy ... need to be fixed
     def FillAreaN(self, xV, yV, LV, ds, dL, n, m, k = 1):
 
         iniX = xV[0]
@@ -226,16 +237,14 @@ class PolygonFill:
         y = []
         for j in range(k) :
 
-            nL = k -j
-            iniY = iniY - (j*self.beadwidth)
-            angle = (math.pi/4)*(n/(n+1))
-            ds = ds - j*(self.beadwidth/math.cos(angle))
-            dL = dL - j*(2*self.beadwidth*math.tan(angle))
+            j = j+1
             for i in range( len(LV) ) :
                 print(' Printing Row %d' %(i))
+                y_start = yV[i] + (j-1)*self.beadwidth
+                # Move to next row
                 if xV[i] > iniX :
                     arc = []
-                    arc.append( [ iniX, yV[i]])
+                    arc.append( [ iniX, y_start ])
                     self.getResult( arc, x,y)
                 if xV[i] < iniX :
                     arc = []
@@ -243,19 +252,17 @@ class PolygonFill:
                     arc.append( [ xV[i], iniY])
                     self.getResult( arc, x,y)
 
+                # Move to starting point of this row
                 iniX = xV[i]
                 iniY = yV[i]
                 if i%2 == 0 :
-                    arcs, h = self.createChain( iniX, iniY, LV[i],ds, dL, n, m, nL)
+                    arcs, h = self.createChain( iniX, iniY, LV[i],ds, dL, n, m, j)
                     self.getResult( arcs, x,y)
                 else :
-                    arcs, h = self.createChain( iniX, iniY, LV[i],ds, dL, m, n, nL)
+                    arcs, h = self.createChain( iniX, iniY, LV[i],ds, dL, m, n, j)
                     self.getResult( arcs, x,y)
 
         return x, y
-
-
-
 
     # Not complete yet
     def partition(self, shell, ds, dL, n, m ):
@@ -290,6 +297,7 @@ class PolygonFill:
 
 
 
+
 ##################################
 #       Testing PolygonFill      #
 ##################################
@@ -300,42 +308,32 @@ y= []
 polychain = PolygonFill(4,10,0)
 iniX = 0
 iniY = 5
-n_up = 3
-n_low = 3
-ds = 10
+n_up = 2
+n_low = 2
+ds = 15
 dL = 5
-nLayer = 2
+nLayer = 3
 
 w0 , h0 = polychain.unitSize(ds,dL,n_up, n_low)
 print( 'Unit size = %.3f , %.3f' %(w0, h0))
-
 LV = [50,30,60,78]
-xV = [0,15,15,30]
+xV = [0,20,20,0]
 yV = []
 for i in range(4):
     yV.append(iniY)
     iniY = iniY - h0 - ((polychain.beadwidth)*(2*nLayer -1 ))
 
 x, y = polychain.FillAreaN(xV, yV, LV, ds, dL, n_up, n_low, nLayer)
-#arcs, h = polychain.createChain( iniX, iniY,40,ds, dL, n_up, n_low)
-#polychain.getResult( arcs, x,y)
-#iniY = iniY - h - (polychain.beadwidth*2)
-#arcs, h = polychain.createChain( iniX, iniY,50,ds, dL, n_low, n_up)
-#polychain.getResult( arcs, x,y)
-
-
 
 '''
-poly = PolygonFill(3,10., math.pi/2)
-poly.create()
-poly.getResult( poly.pos, x,y )
-xcp = poly.imageCopy( poly.pos, 'x' )
-poly.getResult( xcp, x,y )
-ycp1 = poly.imageCopy( xcp, 'y' )
-poly.getResult( ycp1, x, y)
-ycp2 = poly.imageCopy( poly.pos, 'y' )
-poly.getResult( ycp2, x, y)
+arcs, h = polychain.createChain( iniX, iniY,70,ds, dL, n_up, n_low, 1)
+polychain.getResult( arcs, x,y)
+arcs, h = polychain.createChain( iniX, iniY,70,ds, dL, n_up, n_low, 2)
+polychain.getResult( arcs, x,y)
+arcs, h = polychain.createChain( iniX, iniY,70,ds, dL, n_up, n_low, 3)
+polychain.getResult( arcs, x,y)
 '''
+
 
 # setup cavas
 fig = plt.figure( figsize=(7.5,7.5) )
@@ -347,8 +345,8 @@ ax.set_xlabel('x')
 ax.set_ylabel('y')
 
 # Plot XY limit and grid
-plt.xlim([-5, 125])
-plt.ylim([-55, 15])
+plt.xlim([-5, 95])
+plt.ylim([-55, 25])
 plt.grid(b=True, which='major')
 ax.scatter( x,  y,  s=50, marker= 'o', facecolors='red', edgecolors='red' )
 
@@ -365,7 +363,6 @@ for i in range( nPoint -1 ) :
 
     x_ = x[i+1]
     y_ = y[i+1]
-
 
 
 plt.show()
