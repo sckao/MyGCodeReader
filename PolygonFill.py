@@ -32,19 +32,21 @@ class PolygonFill:
         self.z = []
         self.s = []
 
+    def setParameters(self, fval_new = 6000 , rho_new = 0.75, bw_new = 0.75 ):
 
+        self.Fval = fval_new
+        self.rho = rho_new
+        self.beadwidth = bw_new
 
-    def getResult(self, pos= [], xlist=[], ylist=[], z=0, s=1 ):
+    def setTipHeight(self, ts0 = 0.35 , bh0 = 0.5, fh0 = 0.1):
 
+        # Tip speace (ts) and Bead height (bh) and first layer adjustment (fh)
+        self.ts = ts0
+        self.bh = bh0
+        self.fh = fh0
 
-        for i in range( len(pos)) :
-
-            xlist.append( pos[i][0] )
-            ylist.append( pos[i][1] )
-            self.u.append( pos[i][0] )
-            self.v.append( pos[i][1] )
-            self.z.append( z )
-            self.s.append( s )
+        self.z0 = self.ts + self.bh + self.fh
+        return self.z0
 
     def reset(self):
 
@@ -53,10 +55,22 @@ class PolygonFill:
         self.z = []
         self.s = []
 
+    def getResult(self, pos= [], xlist=[], ylist=[], z_input =0, status =1 ):
+
+        for i in range( len(pos)) :
+
+            xlist.append( pos[i][0] )
+            ylist.append( pos[i][1] )
+            self.u.append( pos[i][0] )
+            self.v.append( pos[i][1] )
+            self.z.append( z_input )
+            self.s.append( status )
+
 
     def getData4Gcode(self, rx=[], ry=[], rz=[],rs=[], rE=[], retract = False ):
 
         eVal = 0
+        ret_h = 3.0
         for i in range(len(self.s)) :
 
             if i == 0:
@@ -64,14 +78,15 @@ class PolygonFill:
 
                 # Adding retraction
                 if len(rx) > 0 and retract :
+                    print("Retract !")
                     rx.append( rx[ -1 ] )
                     ry.append( ry[ -1 ] )
-                    rz.append( rz[ -1 ] + 2 )
+                    rz.append( rz[ -1 ] + ret_h )
                     rE.append( eVal )
                     rs.append( 2 )
                     rx.append(self.u[i])
                     ry.append(self.v[i])
-                    rz.append(self.z[-1] + 2 )
+                    rz.append(rz[-1]  )
                     rE.append( eVal )
                     rs.append( 0 )
                     rx.append(self.u[i])
@@ -80,6 +95,7 @@ class PolygonFill:
                     rE.append( 0.1 )
                     rs.append( -2 )
                 else :
+                    print("Fresh Start !")
                     rx.append(self.u[i])
                     ry.append(self.v[i])
                     rz.append(self.z[i] )
@@ -92,12 +108,14 @@ class PolygonFill:
                 dl = math.sqrt( (dx*dx) + (dy*dy) )
                 dt = dl / self.Fval
                 eVal = self.Eval * dt
+                if self.s[i] != 1 :
+                    eVal = 0
 
                 rx.append(self.u[i])
                 ry.append(self.v[i])
                 rz.append(self.z[i] )
                 rE.append( eVal )
-                rs.append( 1 )
+                rs.append(self.s[i] )
 
 
     # Create upper or lower part of the polygon chains
@@ -130,7 +148,7 @@ class PolygonFill:
 
             x = xc + dx
             y = yc + dy
-            print('   (j=%d) , theta = %.3f, x=%.3f y= %.3f' %(j, theta*j, x, y))
+            #print('   (j=%d) , theta = %.3f, x=%.3f y= %.3f' %(j, theta*j, x, y))
             pos.append( [x,y] )
 
         return max_dy
@@ -150,12 +168,12 @@ class PolygonFill:
         angle1 = math.pi/((n+1)*2)
         angle2 = math.pi/((m+1)*2)
         cor =  (d/math.cos(angle1)) - (d*math.tan(angle1))
+        h1 = 0
 
         # start routing
         # adding the first segment
         x = x0
         y = y0 + ((k-1)*d)
-        h1 = 0
         arcs.append([x,y])
         x = x0 + dL - ((k-1)*cor)
         y = y0 + ((k-1)*d)
@@ -169,7 +187,7 @@ class PolygonFill:
             # radius to construct the polygon
             r = ds + ((k-1)*d*2/math.cos(angle1))
 
-            print(" (%d) xc,yc,r =  %.3f, %.3f , %.3f" %(i, xc,yc, r))
+            #print(" (%d) xc,yc,r =  %.3f, %.3f , %.3f" %(i, xc,yc, r))
             h1 = self.createArc( xc, yc, r, n, arcs )
             if (ds+dL)*(i+1) <= Lx :
                 x = x0 + (dL+ds)*i + ((k-1)*cor)
@@ -194,18 +212,20 @@ class PolygonFill:
         arcs.append( [x, y])
         x = arcs[-1][0] - dL +  ((k-1)*cor) - ((k-1)*d)
         arcs.append( [x, y])
+
+        # used for constructing arc
         yc = yc - d
         xc = xc - dL - ds
         i = i-1
         h2 = 0
         j = 1
         cor =  (d/math.cos(angle2)) - (d*math.tan(angle2))
-        print(" >> xc,yc = %.3f, %.3f " %(xc,yc))
+        #print(" >> xc,yc = %.3f, %.3f " %(xc,yc))
         while i > 0 :
 
 
             r = -1*ds - ((k-1)*d*2/math.cos(angle2))
-            print(" (%d) xc,yc,r =  %.3f, %.3f , %.3f" %(i, xc,yc, r))
+            #print(" (%d) xc,yc,r =  %.3f, %.3f , %.3f" %(i, xc,yc, r))
             h2 = self.createArc( xc,yc, r, m, arcs )
             if i > 1 :
                 x = x - ds - ((k-1)*cor*2)
@@ -227,14 +247,15 @@ class PolygonFill:
         x = x -dL + ((k-1)*cor)
         y = y
         arcs.append([x,y])
-        print( ' ** End at  xy = (%.3f , %.3f)' %( x, y))
+        #print( ' ** End at  xy = (%.3f , %.3f)' %( x, y))
         h = h1+h2
         return arcs, h
 
     def unitSize(self, ds, dL, n, m, k = 1):
         arcs, h = self.createChain( 0, 0,dL+ds, ds, dL, n, m, k)
         width = ds
-        height = h + self.beadwidth
+        #height = h + self.beadwidth
+        height = h
         return width, height
 
 
@@ -254,16 +275,23 @@ class PolygonFill:
                 if xV[i] > iniX :
                     arc = []
                     arc.append( [ iniX, y_start ])
+                    arc.append( [ xV[i], y_start ])
                     self.getResult( arc, x,y, z, 0)
                 elif xV[i] < iniX :
                     arc = []
                     iniY = y[-1]
                     arc.append( [ xV[i], iniY])
+                    arc.append( [ xV[i], yV[i]])
                     self.getResult( arc, x,y, z, 0)
                 else :
                     arc = []
                     arc.append( [ xV[i], yV[i]])
                     self.getResult( arc, x,y, z, 0)
+
+
+                #arc = []
+                #arc.append( [ xV[i], yV[i]])
+                #self.getResult( arc, x,y, z, 0)
 
                 # Move to starting point of this row
                 iniX = xV[i]
@@ -285,39 +313,50 @@ class PolygonFill:
 
         width = max(LV)
         height = len(LV)*h0
+        print( ' Pattern height = %.3f ' %(height) )
 
-        self.u = []
-        self.v = []
+        # Just reset internal containers for x,y,z and s
+        self.reset()
 
         # point 1
         x = x0 - delta
-        y = y0 + delta
+        y = y0 + delta + (h0/2)
         self.u.append( x )
         self.v.append( y )
+        self.z.append( self.z0 )
+        self.s.append( 1 )
 
         # point2
         x = x + width + (2*delta)
         y = y
         self.u.append( x )
         self.v.append( y )
+        self.z.append( self.z0 )
+        self.s.append( 1 )
 
         # point3
         x = x
-        y = y - height - (2*delta)
+        y = y - height - (2*delta) - (h0/2)
         self.u.append( x )
         self.v.append( y )
+        self.z.append( self.z0 )
+        self.s.append( 1 )
 
         # point4
         x = x - width - (2*delta)
         y = y
         self.u.append( x )
         self.v.append( y )
+        self.z.append( self.z0 )
+        self.s.append( 1 )
 
         # back to point1
         x = x
-        y = y + height + (2*delta)
+        y = y + height + (2*delta) + (h0/2)
         self.u.append( x )
         self.v.append( y )
+        self.z.append( self.z0 )
+        self.s.append( 1 )
 
     # Not complete yet
     def partition(self, shell, ds, dL, n, m ):
@@ -353,7 +392,6 @@ class PolygonFill:
 
 
 
-
 ##################################
 #       Testing PolygonFill      #
 ##################################
@@ -368,38 +406,53 @@ rz = []
 rE = []
 
 polychain = PolygonFill()
-iniX = 80
-iniY = 80
+# Setup fval, rho, beadwidth
+# if Fval reduce , rho may need to be reduced
+polychain.setParameters(2000, 0.75,0.75)
+#polychain.setParameters(4000, 1.12, 1.0)
+# Setup    tip spacing, bead height, first bead height
+z0 = polychain.setTipHeight(0.35, 0.5, 0.1)
+#z0 = polychain.setTipHeight(0.35, 0.4, 0.0)
+iniX = 50
+iniY = 100
 n_up = 2
 n_low = 2
-ds = 10
-dL = 5
-nLayer = 2
+ds = 14
+dL = 7
+nLayer = 1
+nSlice = 8
 
-LV = [90,60,90,60,90]
-xV0 = [0,15,0,15,0]
+LV = [84,84,84,84,84]
+xV0 = [0,0,0,0,0]
 yV = []
 xV = []
 w0 , h0 = polychain.unitSize(ds,dL,n_up, n_low, nLayer)
+x1 = iniX
+y1 = iniY
+dd = polychain.beadwidth*0.
+for i in range( len(LV) ):
+    x1 = iniX + xV0[i]
+    xV.append( x1 )
+    yV.append( y1 )
+    y1 = y1 - h0 - ((polychain.beadwidth)*2 ) + dd
+
 
 polychain.addSkirt(iniX, iniY, LV, ds, dL, n_up, n_low, nLayer, 10)
 polychain.getData4Gcode(rx,ry,rz,rs,rE)
+print( ' skirt size = %d' %(len(rx)))
 
-for i in range( len(LV) ):
-    xV.append(iniX + xV0[i] )
-    yV.append(iniY)
-    iniY = iniY - h0 - ((polychain.beadwidth)*(2*nLayer -1 ))
+fs = polychain.bh + polychain.ts
+zz = z0
 
+for i in range( nSlice ) :
 
-z = 0.95
-polychain.reset()
-x, y = polychain.FillAreaN(xV, yV, LV, ds, dL, n_up, n_low, nLayer, z)
-polychain.getData4Gcode(rx,ry,rz,rs,rE,True)
+    polychain.reset()
+    x, y = polychain.FillAreaN(xV, yV, LV, ds, dL, n_up, n_low, nLayer, zz)
+    polychain.getData4Gcode(rx,ry,rz,rs,rE,True)
+    print( ' z = %.3f ' %( zz ))
+    zz = zz + fs
 
-# Generate GCode
-fVal = 6000
-
-gc = GCodeGenerator( rs, rx, ry, rz, rE, fVal )
+gc = GCodeGenerator( rs, rx, ry, rz, rE, polychain.Fval )
 #gc.SetGlideSpeed( polyObj.gFval1, polyObj.gFval2 )
 #gc.SetGlideSpeed( 2000, 3000 )
 #gc.Gliding( 0.06, 0.1 , 0.06, 0.1, rs, rx, ry, rz, rE )
