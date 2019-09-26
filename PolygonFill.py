@@ -31,12 +31,14 @@ class PolygonFill:
         self.v = []
         self.z = []
         self.s = []
+        self.ads = 0
 
     def setParameters(self, fval_new = 6000 , rho_new = 0.75, bw_new = 0.75 ):
 
         self.Fval = fval_new
         self.rho = rho_new
         self.beadwidth = bw_new
+        self.Eval = fval_new* rho_new
 
     def setTipHeight(self, ts0 = 0.35 , bh0 = 0.5, fh0 = 0.1):
 
@@ -47,6 +49,13 @@ class PolygonFill:
 
         self.z0 = self.ts + self.bh + self.fh
         return self.z0
+
+    # setup the spacing between upper and lower arc. The default is 1 beadwidth
+    # the scale is the addition adjustment
+    # adjustment = arc_spacing_scale* beadwidth
+    def setArcSpacing(self, arc_spacing_scale = 0  ):
+        self.ads = arc_spacing_scale
+
 
     def reset(self):
 
@@ -207,14 +216,17 @@ class PolygonFill:
             xc = xc + dL + ds
             i = i+1
 
+        # Setup manual adjustment y position
+        ad = self.ads*d
+
         # shift downward
-        y = y - (d*(2*k-1))
+        y = y - (d*(2*k-1)) + ad
         arcs.append( [x, y])
         x = arcs[-1][0] - dL +  ((k-1)*cor) - ((k-1)*d)
         arcs.append( [x, y])
 
         # used for constructing arc
-        yc = yc - d
+        yc = yc - d + ad
         xc = xc - dL - ds
         i = i-1
         h2 = 0
@@ -229,15 +241,15 @@ class PolygonFill:
             h2 = self.createArc( xc,yc, r, m, arcs )
             if i > 1 :
                 x = x - ds - ((k-1)*cor*2)
-                y = y0 -d - ((k-1)*d)
+                y = y0 -d - ((k-1)*d) + ad
                 arcs.append( [x, y] )
 
                 x = x - dL + ((k-1)*cor*2)
-                y = y0 - d - ((k-1)*d)
+                y = y0 - d - ((k-1)*d) + ad
                 arcs.append( [x, y] )
             else :
                 x = x  - ds - ((k-1)*cor*2)
-                y = y0 - d - ((k-1)*d)
+                y = y0 - d - ((k-1)*d) + ad
                 arcs.append( [x, y] )
 
             xc = xc - dL - ds
@@ -407,20 +419,22 @@ rE = []
 
 polychain = PolygonFill()
 # Setup fval, rho, beadwidth
-# if Fval reduce , rho may need to be reduced
-polychain.setParameters(2000, 0.75,0.75)
+polychain.setParameters(1000, 1.2, 0.75)
 #polychain.setParameters(4000, 1.12, 1.0)
 # Setup    tip spacing, bead height, first bead height
 z0 = polychain.setTipHeight(0.35, 0.5, 0.1)
 #z0 = polychain.setTipHeight(0.35, 0.4, 0.0)
+spacing_scale = 0.75
+polychain.setArcSpacing( spacing_scale)
+
 iniX = 50
 iniY = 100
-n_up = 2
-n_low = 2
-ds = 14
-dL = 7
+n_up = 1
+n_low = 1
+ds = 16
+dL = 0
 nLayer = 1
-nSlice = 8
+nSlice = 5
 
 LV = [84,84,84,84,84]
 xV0 = [0,0,0,0,0]
@@ -429,7 +443,7 @@ xV = []
 w0 , h0 = polychain.unitSize(ds,dL,n_up, n_low, nLayer)
 x1 = iniX
 y1 = iniY
-dd = polychain.beadwidth*0.
+dd = polychain.beadwidth*spacing_scale*2
 for i in range( len(LV) ):
     x1 = iniX + xV0[i]
     xV.append( x1 )
