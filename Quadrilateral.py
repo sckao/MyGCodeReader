@@ -39,13 +39,6 @@ class Rectangle :
         self.u = []
         self.v = []
 
-    def Create(self):
-
-        x1 = self.length / 2.
-        y1 = self.width /2.
-        x = [ x1, -1*x1, -1.*x1,    x1 ]
-        y = [ y1,    y1, -1.*y1, -1*y1 ]
-
     # phi : 0~ 2pi , angle of d-vector
     # d : travel distance in x, w: total width in y to fill
     # ud = -1 or 1 => go downward or upward
@@ -136,6 +129,7 @@ class Rectangle :
         x = self.x0
         y = self.y0
 
+        # Take shell thickness into consideration
         if self.shelled :
             d = self.length - (2*self.bw/abs(math.cos(phi)))
             w = self.width - (2*self.bw/abs(math.cos(phi)))
