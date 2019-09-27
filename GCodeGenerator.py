@@ -63,7 +63,7 @@ def Ending( flength, rs = [], rx = [], ry = [], rz = [], rE = [] ):
 
             rx.insert(j, bp[0])
             ry.insert(j, bp[1])
-            rz.insert(j, rz[i])
+            rz.insert(j, rz[j])
             rE.insert(j, eVal0)
             rs.insert(j, 1)
             print(' == > ( %.3f, %.3f) -> ( %.3f, %.3f)  in %.4f (%d)' %( rx[j-1], ry[j-1], rx[j], ry[j], eVal0, rs[j]))
@@ -244,7 +244,6 @@ class GCodeGenerator :
 
         print(' Gliding done !')
 
-
     def Generate(self):
 
         # Open a text file
@@ -281,8 +280,8 @@ class GCodeGenerator :
                 gfile.write('M106 S0\n')
                 gfile.write('G28                            ; Home \n')
                 gfile.write('G92 E0                         ; Reset E \n')
-                gfile.write('M163 S0 P4706                     ; Set extruder mix ratio B for 1:1\n')
-                gfile.write('M163 S1 P5294                     ; Set extruder mix ratio A for 1:1\n')
+                gfile.write('M163 S0 P4444                     ; Set extruder mix ratio B for 1:1\n')
+                gfile.write('M163 S1 P5556                     ; Set extruder mix ratio A for 1:1\n')
                 gfile.write('M163 S2 P0                     ; Enable Extruder \n')
                 gfile.write('T0\n')
                 gfile.write('G1 Z15.0\n')
@@ -292,12 +291,15 @@ class GCodeGenerator :
                 gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%.0f\n' %( xVal, yVal, zVal, eVal, fVal ) )
 
             if self.rs[i] == 0 :
-                gfile.write( 'G0 X%.3f Y%.3f Z%.3f E%.4f\n' %( xVal, yVal, zVal, eVal  ) )
+                gfile.write( '; Retract move \n'  )
+                gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%0.0f\n' %( xVal, yVal, zVal, eVal, fVal  ) )
 
             if self.rs[i] == -2 :
+                gfile.write( '; Retract Stop \n'  )
                 gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f\n' %( xVal, yVal, zVal, eVal ) )
 
             if self.rs[i] == 2 :
+                gfile.write( '; Retract Start \n'  )
                 gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%.0f\n' %( xVal, yVal, zVal, eVal, fVal ) )
                 gfile.write( 'G4 P500\n' )
 
@@ -310,6 +312,7 @@ class GCodeGenerator :
 
             # This is the finishing segment, stop extruding and slow down to 25% of speed
             if self.rs[i] == 9 :
+                gfile.write( '; Ending section\n'  )
                 gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%.0f\n' %( xVal, yVal, zVal, eVal, fVal/4 ) )
 
 

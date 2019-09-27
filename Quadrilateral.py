@@ -11,18 +11,18 @@ class Rectangle :
     length = 0
     height = 0
     phi= math.pi
-    bw = 0.5
+    bw = 0.75
     bh = 0.5
     ts = 0.35
     fh = 0.1
-    rd = 10.0 # retraction distance
+    rd = 5.0 # retraction distance
     zOffset = 0. # addition Z height to offset the z0
 
     nLayer = 1
 
     # Linear density ( or Flow rate )
-    rho = 0.75
-    Fval = 6000.
+    rho = 1
+    Fval = 2000.
     Eval = Fval*rho
 
     u = []
@@ -117,12 +117,14 @@ class Rectangle :
     # phi : 0~ 2pi , angle of w-vector
     # d : travel distance in x, w: total width in y to fill
     # ud = 1 or -1 => go upward or downward
-    def XZigzagFill(self, ud = 1):
+    def XZigzagFill(self, ud = 1, addY_bw = 0  ):
 
         phi = self.phi
         LR = 1
         if math.cos(phi) < 0 : LR =  -1
-        dy = (self.bw/abs(math.cos(phi))) + LR*ud*(self.bw*abs(math.tan(phi)))
+
+        ybw = self.bw + addY_bw
+        dy = ( ybw /abs(math.cos(phi))) + LR*ud*(self.bw*abs(math.tan(phi)))
 
         d = self.length
         w = self.width
@@ -132,14 +134,15 @@ class Rectangle :
         # Take shell thickness into consideration
         if self.shelled :
             d = self.length - (2*self.bw/abs(math.cos(phi)))
-            w = self.width - (2*self.bw/abs(math.cos(phi)))
+            w = self.width - (2*ybw/abs(math.cos(phi)))
             x = self.x0 + (self.bw*LR)
             y = self.y0 + (ud*dy )
 
         i = 0.
         self.u.append( x )
         self.v.append( y )
-        while (w - (i*self.bw) ) >= 0  :
+        stepY = ybw/abs(math.cos(phi))
+        while (w - (i*stepY) ) >= 0  :
 
             x = x + d*math.cos(phi)
             y = y + d*math.sin(phi)
@@ -147,17 +150,17 @@ class Rectangle :
             self.v.append( y )
 
             i = i + 1
-            y = y + (ud*self.bw)
+            y = y + (ud*stepY )
             x = x
             phi = phi - ( math.pow(-1,i-1)*math.pi)
-            if (w - (i*self.bw)) >=0 :
+            if (w - (i*stepY)) >=0 :
                 self.u.append( x )
                 self.v.append( y )
 
     # phi : 0~ 2pi , angle of w-vector
     # d : travel distance in x, w: total width in y to fill
     # ud = -1 or 1 => go downward or upward
-    def YZigzagFill(self, ud = 1):
+    def YZigzagFill(self, ud = 1, addX_bw = 0):
 
         phi = self.phi
         LR = 1
@@ -168,21 +171,18 @@ class Rectangle :
         w = self.width
         x = self.x0
         y = self.y0
+        xbw = self.bw + addX_bw
         if self.shelled :
-            d = self.length - (2*self.bw/abs(math.cos(phi)))
+            d = self.length - (2*xbw/abs(math.cos(phi)))
             w = self.width - (2*self.bw/abs(math.cos(phi)))
-            x = self.x0 + (self.bw*LR)
+            x = self.x0 + (xbw*LR)
             y = self.y0 + (ud*dy )
-            #d = self.length - (self.bw*2)
-            #w = self.width - (self.bw*2)
-            #x = x0 + (self.bw*math.cos(phi))
-            #y = y0 + (self.bw*ud)
 
         r = 0.
         if  phi == math.pi/2 or phi == 1.5*math.pi :
             return
         else :
-            r = abs(self.bw / math.cos( phi ))
+            r = abs(xbw / math.cos( phi ))
 
         print( " step = %.5f " %(r) )
 
@@ -209,8 +209,8 @@ class Rectangle :
         for i in range( len(self.u) ) :
 
             # Calculate Eval
-            prime_eval = 3
-            retract_eval = -3
+            prime_eval = 0.1
+            retract_eval = -1
             shift_eval = 0
             if i == 0 :
 
@@ -341,15 +341,15 @@ class Rectangle :
 
     def Configure(self):
 
-        self.length = input('Length (60 mm): ')
+        self.length = input('Length (80 mm): ')
         if self.length == '':
-            self.length = 60
+            self.length = 80
         else:
             self.length = float(self.length)
 
-        self.width = input('Width (15 mm): ')
+        self.width = input('Width (20 mm): ')
         if self.width == '':
-            self.width = 15
+            self.width = 20
         else:
             self.width = float(self.width)
 
@@ -397,7 +397,7 @@ class Rectangle :
         # 5 mm away from the edge
         self.AddSkirt( 5, 1 )
         self.GetResult( z, rx, ry, rz, rE, rS, retract )
-        Ending( 15, rS,rx, ry, rz, rE )
+        Ending( 1, rS,rx, ry, rz, rE )
         self.u = []
         self.v = []
 
@@ -405,26 +405,28 @@ class Rectangle :
 
 
             self.AddShell( 1 )
-            self.GetResult( z, rx, ry, rz, rE, rS, retract )
-            Ending( 5, rS,rx, ry, rz, rE )
-            self.u = []
-            self.v = []
+            #self.GetResult( z, rx, ry, rz, rE, rS, retract )
+            #Ending( 0.5, rS,rx, ry, rz, rE )
+            #self.u = []
+            #self.v = []
             print(' Layer %d = %.3f ' %(i,z ))
-            if i%2 == 0 :
+            if i%2 == 2 :
                 self.XZigzagFill( 1 )
                 self.GetResult( z, rx, ry, rz, rE, rS )
                 Ending( 10, rS,rx, ry, rz, rE )
                 self.u = []
                 self.v = []
             else :
-                self.YZigzagFill( 1 )
+                self.YZigzagFill( 1, self.bw*3 )
                 self.GetResult( z, rx, ry, rz, rE, rS )
-                Ending( 10, rS,rx, ry, rz, rE )
+                #Ending( 0.5, rS,rx, ry, rz, rE )
                 self.u = []
                 self.v = []
 
-
-            z = z + self.bh
+            if i > 2 :
+                z = z + self.bh + 0.1
+            else :
+                z = z + self.bh
 
         #Ending( 5, rS,rx, ry, rz, rE )
 
