@@ -3,12 +3,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from GCodeGenerator import GCodeGenerator
 
-def sortX( vec ):
-    return vec[0]
-
-def sortY( vec ):
-    return vec[1]
-
 class PolygonFill:
 
     # Tip speace (ts) and Bead height (bh) and first layer adjustment (fh)
@@ -129,7 +123,8 @@ class PolygonFill:
 
     # Create upper or lower part of the polygon chains
     # ds < 0 is for the lower part
-    def createArc(self, xc, yc, ds, n, pos):
+    # scale is for scaling y position
+    def createArc(self, xc, yc, ds, n, pos, scale = 1.):
 
         theta = math.pi / (n+1)
         r = abs(ds/2.)
@@ -150,7 +145,7 @@ class PolygonFill:
             if ds < 0 :
                 j = -1*(i+1)
             dx = r*math.cos( theta*j )
-            dy = r*math.sin( theta*j )
+            dy = r*math.sin( theta*j )*scale
 
             if abs(dy) > max_dy :
                 max_dy = abs(dy)
@@ -168,7 +163,8 @@ class PolygonFill:
     # Lx : length of the polygon chain
     # ds : diameter of the polygon, dL : spacing between polygons
     # n,m : number of points in upper or lower arch
-    def createChain(self,x0,y0, Lx, ds, dL, n, m, k = 1 ):
+    # scale : scale the height of the (half) polygon
+    def createChain(self,x0,y0, Lx, ds, dL, n, m, k = 1, scale = 1. ):
 
         # Setup parameters
         i = 1
@@ -197,7 +193,7 @@ class PolygonFill:
             r = ds + ((k-1)*d*2/math.cos(angle1))
 
             #print(" (%d) xc,yc,r =  %.3f, %.3f , %.3f" %(i, xc,yc, r))
-            h1 = self.createArc( xc, yc, r, n, arcs )
+            h1 = self.createArc( xc, yc, r, n, arcs, scale )
             if (ds+dL)*(i+1) <= Lx :
                 x = x0 + (dL+ds)*i + ((k-1)*cor)
                 y = y0 + ((k-1)*d)
@@ -238,7 +234,7 @@ class PolygonFill:
 
             r = -1*ds - ((k-1)*d*2/math.cos(angle2))
             #print(" (%d) xc,yc,r =  %.3f, %.3f , %.3f" %(i, xc,yc, r))
-            h2 = self.createArc( xc,yc, r, m, arcs )
+            h2 = self.createArc( xc,yc, r, m, arcs, scale )
             if i > 1 :
                 x = x - ds - ((k-1)*cor*2)
                 y = y0 -d - ((k-1)*d) + ad
@@ -263,15 +259,15 @@ class PolygonFill:
         h = h1+h2
         return arcs, h
 
-    def unitSize(self, ds, dL, n, m, k = 1):
-        arcs, h = self.createChain( 0, 0,dL+ds, ds, dL, n, m, k)
+    def unitSize(self, ds, dL, n, m, k = 1, scale = 1.):
+        arcs, h = self.createChain( 0, 0,dL+ds, ds, dL, n, m, k, scale )
         width = ds
         #height = h + self.beadwidth
         height = h
         return width, height
 
 
-    def FillAreaN(self, xV, yV, LV, ds, dL, n, m, k = 1, z = 0 ):
+    def FillAreaN(self, xV, yV, LV, ds, dL, n, m, k = 1, z = 0, scale = 1. ):
 
         iniX = xV[0]
         iniY = yV[0]
@@ -298,7 +294,7 @@ class PolygonFill:
                 else :
                     arc = []
                     arc.append( [ xV[i], yV[i]])
-                    self.getResult( arc, x,y, z, 0)
+                    self.getResult( arc, x,y, z, 1)
 
 
                 #arc = []
@@ -309,18 +305,18 @@ class PolygonFill:
                 iniX = xV[i]
                 iniY = yV[i]
                 if i%2 == 0 :
-                    arcs, h = self.createChain( iniX, iniY, LV[i],ds, dL, n, m, j)
+                    arcs, h = self.createChain( iniX, iniY, LV[i],ds, dL, n, m, j, scale)
                     self.getResult( arcs, x,y, z, 1)
                 else :
-                    arcs, h = self.createChain( iniX, iniY, LV[i],ds, dL, m, n, j)
+                    arcs, h = self.createChain( iniX, iniY, LV[i],ds, dL, m, n, j, scale)
                     self.getResult( arcs, x,y, z, 1)
 
         return x, y
 
 
-    def addSkirt(self, x0, y0, LV, ds, dL, n, m, k, delta = 5 ):
+    def addSkirt(self, x0, y0, LV, ds, dL, n, m, k, delta = 5, scale = 1 ):
 
-        w0 , h0 = self.unitSize(ds,dL,n, m, k)
+        w0 , h0 = self.unitSize(ds,dL,n, m, k, scale )
         print( 'Unit size = %.3f , %.3f' %(w0, h0))
 
         width = max(LV)
@@ -418,29 +414,29 @@ rz = []
 rE = []
 
 polychain = PolygonFill()
-# Setup fval, rho, beadwidth
-polychain.setParameters(1000, 1.2, 0.75)
+# Setup                 fval, rho, beadwidth
+polychain.setParameters(500, 1., 1.25)
 #polychain.setParameters(4000, 1.12, 1.0)
 # Setup    tip spacing, bead height, first bead height
-z0 = polychain.setTipHeight(0.35, 0.5, 0.1)
-#z0 = polychain.setTipHeight(0.35, 0.4, 0.0)
-spacing_scale = 0.75
+z0 = polychain.setTipHeight(0.15, 0.55, 0.1)
+spacing_scale = 1
 polychain.setArcSpacing( spacing_scale)
 
 iniX = 50
-iniY = 100
+iniY = 150
 n_up = 1
 n_low = 1
 ds = 16
 dL = 0
 nLayer = 1
-nSlice = 5
+nSlice = 1
+scale = 0.57735
 
-LV = [84,84,84,84,84]
+LV = [ ds*10, ds*10 , ds*10, ds*10, ds*10]
 xV0 = [0,0,0,0,0]
 yV = []
 xV = []
-w0 , h0 = polychain.unitSize(ds,dL,n_up, n_low, nLayer)
+w0 , h0 = polychain.unitSize(ds,dL,n_up, n_low, nLayer, scale)
 x1 = iniX
 y1 = iniY
 dd = polychain.beadwidth*spacing_scale*2
@@ -448,10 +444,11 @@ for i in range( len(LV) ):
     x1 = iniX + xV0[i]
     xV.append( x1 )
     yV.append( y1 )
-    y1 = y1 - h0 - ((polychain.beadwidth)*2 ) + dd
+    y1 = y1 - h0 - ((polychain.beadwidth)*2 ) + dd - i*0.25*polychain.beadwidth
+    #y1 = y1 - h0 - ((polychain.beadwidth)*2 )
+    #iniX = iniX  - (polychain.beadwidth/math.tan( math.pi/(n_up+n_low+2) ))
 
-
-polychain.addSkirt(iniX, iniY, LV, ds, dL, n_up, n_low, nLayer, 10)
+polychain.addSkirt(iniX, iniY, LV, ds, dL, n_up, n_low, nLayer, 5, scale)
 polychain.getData4Gcode(rx,ry,rz,rs,rE)
 print( ' skirt size = %d' %(len(rx)))
 
@@ -461,7 +458,7 @@ zz = z0
 for i in range( nSlice ) :
 
     polychain.reset()
-    x, y = polychain.FillAreaN(xV, yV, LV, ds, dL, n_up, n_low, nLayer, zz)
+    x, y = polychain.FillAreaN(xV, yV, LV, ds, dL, n_up, n_low, nLayer, zz, scale)
     polychain.getData4Gcode(rx,ry,rz,rs,rE,True)
     print( ' z = %.3f ' %( zz ))
     zz = zz + fs
@@ -493,8 +490,8 @@ ax.set_xlabel('x')
 ax.set_ylabel('y')
 
 # Plot XY limit and grid
-plt.xlim([-5, 105])
-plt.ylim([-5, 95])
+plt.xlim([25, 125])
+plt.ylim([25, 115])
 plt.grid(b=True, which='major')
 ax.scatter( x,  y,  s=50, marker= 'o', facecolors='red', edgecolors='red' )
 
