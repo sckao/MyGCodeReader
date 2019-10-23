@@ -11,17 +11,21 @@ class Rectangle :
     length = 0
     height = 0
     phi= math.pi
-    bw = 0.75
+    bw = 1.5
     bh = 0.5
-    ts = 0.35
-    fh = 0.1
+    ts = 0.25
+    fh = 0.0
+    # For rho = 1.0
+    #bw = 1.95
+    #ts = 0.35
+    #fh = 0.1
     rd = 5.0 # retraction distance
     zOffset = 0. # addition Z height to offset the z0
 
     nLayer = 1
 
     # Linear density ( or Flow rate )
-    rho = 1
+    rho = 0.6
     Fval = 2000.
     Eval = Fval*rho
 
@@ -209,8 +213,8 @@ class Rectangle :
         for i in range( len(self.u) ) :
 
             # Calculate Eval
-            prime_eval = 0.1
-            retract_eval = -1
+            prime_eval = 0.
+            retract_eval = -0.5
             shift_eval = 0
             if i == 0 :
 
@@ -341,15 +345,15 @@ class Rectangle :
 
     def Configure(self):
 
-        self.length = input('Length (80 mm): ')
+        self.length = input('Length (150 mm): ')
         if self.length == '':
-            self.length = 80
+            self.length = 150
         else:
             self.length = float(self.length)
 
-        self.width = input('Width (20 mm): ')
+        self.width = input('Width (100 mm): ')
         if self.width == '':
-            self.width = 20
+            self.width = 100
         else:
             self.width = float(self.width)
 
@@ -364,9 +368,9 @@ class Rectangle :
             self.phi = 0
         else:
             self.phi = float(self.phi)
-        self.bw = input('Bead width (0.75): ')
+        self.bw = input('Bead width (1.95): ')
         if self.bw == '':
-            self.bw = 0.75
+            self.bw = 1.95
         else:
             self.bw = float(self.bw)
         self.nLayer = input('Number of Layer (1): ')
@@ -374,6 +378,16 @@ class Rectangle :
             self.nLayer = 1
         else:
             self.nLayer = int(self.nLayer)
+        self.rho = input('Flow Rate (0.6): ')
+        if self.rho == '':
+            self.rho = 0.6
+        else:
+            self.rho = float(self.rho)
+        self.Fval = input('Print Speed (mm/min) (2000): ')
+        if self.Fval == '':
+            self.Fval = 2000
+        else:
+            self.Fval = float(self.Fval)
 
         self.x0 = input('Initial X Position (100): ')
         if self.x0 == '':
@@ -386,6 +400,7 @@ class Rectangle :
         else:
             self.y0 = float(self.y0)
 
+        self.Eval = self.Fval*self.rho
 
     def CustomConstruction(self, rx =[], ry= [], rz = [] , rE = [], rS = [] ):
 
@@ -403,7 +418,6 @@ class Rectangle :
 
         for i in range( self.nLayer ) :
 
-
             self.AddShell( 1 )
             #self.GetResult( z, rx, ry, rz, rE, rS, retract )
             #Ending( 0.5, rS,rx, ry, rz, rE )
@@ -417,9 +431,9 @@ class Rectangle :
                 self.u = []
                 self.v = []
             else :
-                self.YZigzagFill( 1, self.bw*3 )
+                self.YZigzagFill( 1, 0.5 )
                 self.GetResult( z, rx, ry, rz, rE, rS )
-                #Ending( 0.5, rS,rx, ry, rz, rE )
+                Ending( 2., rS,rx, ry, rz, rE )
                 self.u = []
                 self.v = []
 
@@ -438,15 +452,16 @@ rz = []
 rE = []
 rS = []
 
-recObj = Rectangle(20, 5 , 1, math.pi)
+recObj = Rectangle(15, 10 , 1, math.pi)
 #recObj.ConstructBMW(rx, ry, rz, rE, rS)
 recObj.CustomConstruction( rx, ry, rz, rE, rS )
 
 # Output GCode
-gc = GCodeGenerator( rS, rx, ry, rz, rE, recObj.Fval )
+gc = GCodeGenerator( rS, rx, ry, rz, rE, recObj.Fval, recObj.rho )
 
-#gc.SetGlideSpeed( 2000, 3000 )
-#gc.Gliding( 0.05, 0.1 , 0.05, 0.1, rS, rx, ry, rz, rE )
+gc.SetGlideSpeed( 600, 300 )
+# Setup gliding time and eRatio for incoming and outgoing of an angle
+gc.Gliding( 0.1, 0.02 , 0.2, 0.9, rS, rx, ry, rz, rE )
 
 #gc.Shift( 100, 100, 0 )
 gc.Generate()
@@ -464,6 +479,7 @@ ax.set_ylabel('y')
 plt.xlim([20, 200])
 plt.ylim([20, 200])
 plt.grid(b=True, which='major')
+
 
 # Start Routing (x,y) -> (xt,yt) -> (x,y)
 print( ' total point %d ' %( len(rx)) )

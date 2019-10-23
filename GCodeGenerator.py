@@ -41,8 +41,10 @@ def BreakSegment( x1,y1, x2,y2, ratio ):
 
 
 # rs status = 9 for ending
+# For a printing section, slow down in the end ( in the final "flength" )
 def Ending( flength, rs = [], rx = [], ry = [], rz = [], rE = [] ):
 
+    endingScale = 0.5
     j = len( rs ) - 1
     print(" Ending section (%d) " %(j) )
     for i in range( len(rs) ) :
@@ -68,14 +70,16 @@ def Ending( flength, rs = [], rx = [], ry = [], rz = [], rE = [] ):
             rs.insert(j, 1)
             print(' == > ( %.3f, %.3f) -> ( %.3f, %.3f)  in %.4f (%d)' %( rx[j-1], ry[j-1], rx[j], ry[j], eVal0, rs[j]))
             ## re-calculate the E Value for the 2nd segment
+            ## Only use
             dL = dLength(rx[j+1], ry[j+1], bp[0], bp[1] )
-            rE[j+1] = 0
+            eVal1 = endingScale*rE[j] * dL / L
+            rE[j+1] = eVal1
             rs[j+1] = 9
             print(' ===> ( %.3f, %.3f) -> ( %.3f, %.3f) ' %( rx[j + 1], ry[j + 1], rx[j], ry[j]))
             break
         else :
             print('3. Slow down ')
-            rE[j] = 0
+            rE[j] = endingScale*rE[j]
             rs[j] = 9
 
         j = j -1
@@ -85,12 +89,12 @@ def Ending( flength, rs = [], rx = [], ry = [], rz = [], rE = [] ):
 class GCodeGenerator :
 
     # Linear density ( or Flow rate )
-    rho = 0.75
-    Fval = 6000.
+    rho = 0.6
+    Fval = 2000.
     Eval = Fval*rho
 
 
-    def __init__(self, rs = [], rx =[], ry=[], rz=[], rE=[], F =4000 ):
+    def __init__(self, rs = [], rx =[], ry=[], rz=[], rE=[], F =2000, rho = 0.6 ):
 
         self.rs = rs
         self.rx = rx
@@ -98,6 +102,8 @@ class GCodeGenerator :
         self.rz = rz
         self.rE = rE
         self.F   = F
+        self.rho = rho
+        self.Eval = F*rho
         self.gF1 = F
         self.gF2 = F
 
@@ -131,6 +137,7 @@ class GCodeGenerator :
              rS.append( 2 )
 
 
+    # Perform gliding
     def Gliding(self, gTime1, eRatio1 , gTime2, eRatio2, rS = [], rx = [], ry = [], rz = [], rE = [] ):
 
         # gd: Gliding distance (mm) : Def by  x sec in whatever speed ( mm/sec )
@@ -143,10 +150,12 @@ class GCodeGenerator :
         for it in rS:
 
             print(' SIZE = %d' % (len(rS)))
+
+            # No gliding for retraction
             if it == 0 or abs(it) == 2:
                 i = i + 1
                 continue
-
+            #
             if len(rE) > 3 and i < (len(rE) - 3):
                 print('     ( %.3f, %.3f) -> ( %.3f, %.3f) -> ( %.3f, %.3f)' % (
                 rx[i], ry[i], rx[i + 1], ry[i + 1], rx[i + 2], ry[i + 2]))
@@ -280,8 +289,12 @@ class GCodeGenerator :
                 gfile.write('M106 S0\n')
                 gfile.write('G28                            ; Home \n')
                 gfile.write('G92 E0                         ; Reset E \n')
-                gfile.write('M163 S0 P4444                     ; Set extruder mix ratio B for 1:1\n')
-                gfile.write('M163 S1 P5556                     ; Set extruder mix ratio A for 1:1\n')
+                # index 1.25
+                #gfile.write('M163 S0 P4444                     ; Set extruder mix ratio B for 1:1\n')
+                #gfile.write('M163 S1 P5556                     ; Set extruder mix ratio A for 1:1\n')
+                # index 1.1
+                gfile.write('M163 S0 P4762                     ; Set extruder mix ratio B for 1:1\n')
+                gfile.write('M163 S1 P5238                     ; Set extruder mix ratio A for 1:1\n')
                 gfile.write('M163 S2 P0                     ; Enable Extruder \n')
                 gfile.write('T0\n')
                 gfile.write('G1 Z15.0\n')
