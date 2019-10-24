@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from GCodeGenerator import GCodeGenerator
 from GCodeGenerator import Ending
 from GCodeGenerator import dLength
+from ReadRecipe import ReadRecipe
 
 class Rectangle :
 
@@ -42,6 +43,17 @@ class Rectangle :
         self.y0 = 0
         self.u = []
         self.v = []
+        recipe = ReadRecipe()
+        recipe.getPrintable()
+        self.Fval = recipe.Fval
+        self.rho = recipe.rho
+        self.Eval = self.Fval*self.rho
+        self.bh = recipe.bh
+        self.ts = recipe.ts
+        self.fh = recipe.fh
+        self.bw = recipe.bs
+        self.rd = recipe.rh
+        self.nLayer = recipe.nLayer
 
     # phi : 0~ 2pi , angle of d-vector
     # d : travel distance in x, w: total width in y to fill
