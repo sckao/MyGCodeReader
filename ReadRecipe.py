@@ -3,7 +3,7 @@
 class ReadRecipe :
 
 
-    def __init__(self):
+    def __init__(self, fileName = '' ):
 
         self.Fval = 1000
         self.rho = 0.6
@@ -14,11 +14,14 @@ class ReadRecipe :
         self.bs = 1.5
         self.rh = 5
 
-        recipename = input('Recipe filename : ')
-        if recipename == '':
-            recipename = 'recipe.txt'
+        self.recipename = fileName
 
-        self.recipe = open(recipename, 'r+')
+        if fileName == '' :
+            self.recipename = input('Recipe filename : ')
+            if self.recipename == '':
+                self.recipename = 'recipe.txt'
+
+        self.recipe = open( self.recipename, 'r+')
         self.rlines = self.recipe.readlines()
 
 
@@ -102,10 +105,10 @@ class ReadRecipe :
 
                 # exclucde the case when the paraName is the sub-string of other paraName
                 if id > 0 and id < 999 and line[id-1] != ' ' :
-                    print('Not Parameter - ' + iPar )
+                    #print('Not Parameter - ' + iPar )
                     continue
                 if id < 0 :
-                    print('Missing Parameter - ' + iPar )
+                    #print('Missing Parameter - ' + iPar )
                     continue
 
                 # Find the value of the parameter
@@ -113,7 +116,7 @@ class ReadRecipe :
                 sline = line[sid:]
                 vid = sline.find('=')
                 if vid < 0 :
-                    print(' No value assignment !!! - ' + sline )
+                    #print(' No value assignment !!! - ' + sline )
                     continue
 
                 # strip off '=' and get the values
