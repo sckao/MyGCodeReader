@@ -65,6 +65,21 @@ class Polygrams:
         self.gFval1 = self.Fval
         self.gFval2 = self.Fval
 
+    def setGeometry(self, r1, r2, n , objectType ):
+        self.n = int( n )
+        self.r1 = r1
+        self.r2 = r2
+        self.objType = objectType
+
+    def setPrintable(self, Fval_, rho_, bh_, ts_, fh_, bw_, nlayer_ ):
+
+        self.Fval = Fval_
+        self.rho = rho_
+        self.bh = bh_
+        self.ts = ts_
+        self.fh = fh_
+        self.bw = bw_
+        self.nLayer = nlayer_
 
     def SetParameters(self, n_ , r_ , delta_  = -1.*math.pi /2 ):
         self.n = int(n_)
