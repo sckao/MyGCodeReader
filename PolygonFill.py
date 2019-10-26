@@ -2,6 +2,7 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 from GCodeGenerator import GCodeGenerator
+from ReadRecipe import ReadRecipe
 
 class PolygonFill:
 
@@ -73,7 +74,7 @@ class PolygonFill:
     def getData4Gcode(self, rx=[], ry=[], rz=[],rs=[], rE=[], retract = False ):
 
         eVal = 0
-        ret_h = 3.0
+        ret_h = 5.0
         for i in range(len(self.s)) :
 
             if i == 0:
@@ -335,7 +336,7 @@ class PolygonFill:
         self.s.append( 1 )
 
         # point2
-        x = x + width + (2*delta)
+        x = x + width + (2*delta) + dL
         y = y
         self.u.append( x )
         self.v.append( y )
@@ -344,14 +345,14 @@ class PolygonFill:
 
         # point3
         x = x
-        y = y - height - (2*delta) - (h0/2)
+        y = y - height - (2*delta)
         self.u.append( x )
         self.v.append( y )
         self.z.append( self.z0 )
         self.s.append( 1 )
 
         # point4
-        x = x - width - (2*delta)
+        x = x - width - (2*delta) - dL
         y = y
         self.u.append( x )
         self.v.append( y )
@@ -360,7 +361,7 @@ class PolygonFill:
 
         # back to point1
         x = x
-        y = y + height + (2*delta) + (h0/2)
+        y = y + height + (2*delta)
         self.u.append( x )
         self.v.append( y )
         self.z.append( self.z0 )
@@ -403,6 +404,10 @@ class PolygonFill:
 ##################################
 #       Testing PolygonFill      #
 ##################################
+'''
+# Get basic 8 printing parameters
+recipe = ReadRecipe('formNext_rcp.txt')
+recipe.getPrintable()
 
 x= []
 y= []
@@ -414,25 +419,30 @@ rz = []
 rE = []
 
 polychain = PolygonFill()
-# Setup                 fval, rho, beadwidth
-polychain.setParameters(500, 1., 1.25)
+# Setup                    fval,          rho,    beadwidth
+polychain.setParameters( recipe.Fval, recipe.rho, recipe.bs )
 #polychain.setParameters(4000, 1.12, 1.0)
 # Setup    tip spacing, bead height, first bead height
-z0 = polychain.setTipHeight(0.15, 0.55, 0.1)
-spacing_scale = 1
+#z0 = polychain.setTipHeight(0.15, 0.55, 0.1)
+z0 = polychain.setTipHeight( recipe.ts, recipe.bh, recipe.fh )
+
+spacing_scale = 0.75
 polychain.setArcSpacing( spacing_scale)
 
 iniX = 50
-iniY = 150
-n_up = 1
-n_low = 1
+iniY = 80
+n_up = 2
+n_low = 2
 ds = 16
-dL = 0
+dL = 8
 nLayer = 1
-nSlice = 1
-scale = 0.57735
+nSlice = 10
+#scale = 0.57735
+scale = 1
 
-LV = [ ds*10, ds*10 , ds*10, ds*10, ds*10]
+dr = ds + dL
+
+LV = [ dr*5, dr*5 , dr*5, dr*5 ]
 xV0 = [0,0,0,0,0]
 yV = []
 xV = []
@@ -444,12 +454,13 @@ for i in range( len(LV) ):
     x1 = iniX + xV0[i]
     xV.append( x1 )
     yV.append( y1 )
-    y1 = y1 - h0 - ((polychain.beadwidth)*2 ) + dd - i*0.25*polychain.beadwidth
+    #y1 = y1 - h0 - ((polychain.beadwidth)*2 ) + dd - i*0.25*polychain.beadwidth
+    y1 = y1 - h0 - ((polychain.beadwidth)*2 ) + dd
     #y1 = y1 - h0 - ((polychain.beadwidth)*2 )
     #iniX = iniX  - (polychain.beadwidth/math.tan( math.pi/(n_up+n_low+2) ))
 
 polychain.addSkirt(iniX, iniY, LV, ds, dL, n_up, n_low, nLayer, 5, scale)
-polychain.getData4Gcode(rx,ry,rz,rs,rE)
+#polychain.getData4Gcode(rx,ry,rz,rs,rE)
 print( ' skirt size = %d' %(len(rx)))
 
 fs = polychain.bh + polychain.ts
@@ -457,7 +468,9 @@ zz = z0
 
 for i in range( nSlice ) :
 
-    polychain.reset()
+    if i > 0 :
+        polychain.reset()
+
     x, y = polychain.FillAreaN(xV, yV, LV, ds, dL, n_up, n_low, nLayer, zz, scale)
     polychain.getData4Gcode(rx,ry,rz,rs,rE,True)
     print( ' z = %.3f ' %( zz ))
@@ -470,14 +483,13 @@ gc = GCodeGenerator( rs, rx, ry, rz, rE, polychain.Fval )
 #gc.Shift( 150, 150, 0 )
 gc.Generate()
 
-'''
-arcs, h = polychain.createChain( iniX, iniY,70,ds, dL, n_up, n_low, 1)
-polychain.getResult( arcs, x,y)
-arcs, h = polychain.createChain( iniX, iniY,70,ds, dL, n_up, n_low, 2)
-polychain.getResult( arcs, x,y)
-arcs, h = polychain.createChain( iniX, iniY,70,ds, dL, n_up, n_low, 3)
-polychain.getResult( arcs, x,y)
-'''
+#arcs, h = polychain.createChain( iniX, iniY,70,ds, dL, n_up, n_low, 1)
+#polychain.getResult( arcs, x,y)
+#arcs, h = polychain.createChain( iniX, iniY,70,ds, dL, n_up, n_low, 2)
+#polychain.getResult( arcs, x,y)
+#arcs, h = polychain.createChain( iniX, iniY,70,ds, dL, n_up, n_low, 3)
+#polychain.getResult( arcs, x,y)
+
 
 
 # setup cavas
@@ -511,3 +523,4 @@ for i in range( nPoint -1 ) :
 
 
 plt.show()
+'''
