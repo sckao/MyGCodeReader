@@ -5,12 +5,13 @@ from PolygonFill import PolygonFill
 from Polygram import Polygrams
 
 # Get basic 8 printing parameters
-rcp = ReadRecipe()
+rcp = ReadRecipe('formNext_rcp_10.txt')
 rcp.getPrintable()
 
 x= []
 y= []
 
+# containers for printing path
 rs = []
 rx = []
 ry = []
@@ -19,57 +20,50 @@ rE = []
 
 
 # Setup the outer ring
+# Basics for the ring configuration
 polyObj = Polygrams()
-polyObj.setGeometry(70., 72.5,360,0)
 polyObj.setPrintable( rcp.Fval, rcp.rho, rcp.bh, rcp.ts, rcp.fh, rcp.bs, rcp.nLayer )
-polyObj.AddSkirt(rs, rx, ry, rz, rE )
-polyObj.Construct3D(rs, rx, ry, rz, rE )
-# Output GCode
-gc = GCodeGenerator( rs, rx, ry, rz, rE, polyObj.Fval )
-#gc.SetGlideSpeed( polyObj.gFval1, polyObj.gFval2 )
+#polyObj.setCenter(102.5, 75)
+polyObj.setCenter(110, 108)
+polyObj.setGeometry(70., 72.5, 36, 0)
 
-gc.Shift( 102.5, 75, 0 )
-gc.Generate()
-
-
+# Basics for the Polygon
 polychain = PolygonFill()
 # Setup                    fval,      rho,  beadwidth
 polychain.setParameters( rcp.Fval, rcp.rho, rcp.bs )
 # Setup    tip spacing, bead height, first bead height
 z0 = polychain.setTipHeight( rcp.ts, rcp.bh, rcp.fh )
-
 spacing_scale = 0.75
 polychain.setArcSpacing( spacing_scale)
 
-iniX = 50
-iniY = 100
-n_up = 2
-n_low = 2
-ds = 13.125
-dL = 6.5625
+# Grid printing configuration
+iniX = rcp.getParameter('InitX')
+iniY = rcp.getParameter('InitY')
+n_up = int ( rcp.getParameter('N_up') )
+n_low = int ( rcp.getParameter('N_low') )
+ds = rcp.getParameter('ds')
+dL = rcp.getParameter('dL')
 # Thickness of the print
-nLayer = 1
+nBead = int( rcp.getParameter('NBead') )
 # Height of the print
 nSlice = int(rcp.nLayer)
-#scale = 0.57735
-scale = 1
-
+yscale = rcp.getParameter('YScale')
 dr = ds + dL
-
-LV = [    dr*3,    dr*3,  dr*5,    dr*3,    dr*3 ]
-xV0 = [19.6875, 19.6875,     0, 19.6875,  19.6875]
-yV = []
-xV = []
-w0 , h0 = polychain.unitSize(ds,dL,n_up, n_low, nLayer, scale)
+LV = [    dr*3, dr*5,   dr*5,  dr*5,    dr*5,   dr*5,   dr*3 ]
+xV0 = [   22.5,    0,      0,     0,       0,      0, 22.5]
+w0 , h0 = polychain.unitSize(ds,dL,n_up, n_low, nBead, yscale)
 x1 = iniX
 y1 = iniY
 dd = polychain.beadwidth*spacing_scale*2
+
+yV = []
+xV = []
 for i in range( len(LV) ):
     x1 = iniX + xV0[i]
     xV.append( x1 )
     yV.append( y1 )
-    #y1 = y1 - h0 - ((polychain.beadwidth)*2 ) + dd - i*0.25*polychain.beadwidth
     y1 = y1 - h0 - ((polychain.beadwidth)*2 ) + dd
+    #y1 = y1 - h0 - ((polychain.beadwidth)*2 ) + dd - i*0.25*polychain.beadwidth
     #y1 = y1 - h0 - ((polychain.beadwidth)*2 )
     #iniX = iniX  - (polychain.beadwidth/math.tan( math.pi/(n_up+n_low+2) ))
 
@@ -77,20 +71,28 @@ for i in range( len(LV) ):
 #polychain.getData4Gcode(rx,ry,rz,rs,rE)
 #print( ' skirt size = %d' %(len(rx)))
 
-fs = polychain.bh + polychain.ts
+###############################
+# Start construct each layer  #
+###############################
+
+z0 = rcp.bh + rcp.ts + rcp.fh
+dz = rcp.bh + rcp.ts
 zz = z0
+# Add skirt of the circle
+polyObj.AddSkirt(rs, rx, ry, rz, rE )
 
 for i in range( nSlice ) :
 
     if i > 0 :
         polychain.reset()
 
-    x, y = polychain.FillAreaN(xV, yV, LV, ds, dL, n_up, n_low, nLayer, zz, scale)
+    polyObj.Construct2D(zz, rs, rx, ry, rz, rE, False )
+    x, y = polychain.FillAreaN(xV, yV, LV, ds, dL, n_up, n_low, nBead, zz, yscale)
     polychain.getData4Gcode(rx,ry,rz,rs,rE,True)
     print( ' z = %.3f ' %( zz ))
-    zz = zz + fs
+    zz = zz + dz
 
-gc = GCodeGenerator( rs, rx, ry, rz, rE, polychain.Fval, polychain.rho )
+gc = GCodeGenerator( rs, rx, ry, rz, rE, rcp.Fval, rcp.rho )
 gc.Generate()
 
 

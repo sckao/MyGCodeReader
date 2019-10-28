@@ -64,12 +64,21 @@ class Polygrams:
         self.Eval = self.rho * self.Fval
         self.gFval1 = self.Fval
         self.gFval2 = self.Fval
+        self.x0 = 0
+        self.y0 = 0
+
+    def setCenter(self, x0, y0):
+
+        self.x0 = x0
+        self.y0 = y0
 
     def setGeometry(self, r1, r2, n , objectType ):
+
         self.n = int( n )
         self.r1 = r1
         self.r2 = r2
         self.objType = objectType
+        self.nStep = int( abs(self.r1 - self.r2)/self.bw )
 
     def setPrintable(self, Fval_, rho_, bh_, ts_, fh_, bw_, nlayer_ ):
 
@@ -79,7 +88,8 @@ class Polygrams:
         self.ts = ts_
         self.fh = fh_
         self.bw = bw_
-        self.nLayer = nlayer_
+        self.nLayer = int( nlayer_ )
+        #self.nStep = int( abs(self.r1 - self.r2)/self.bw )
 
     def SetParameters(self, n_ , r_ , delta_  = -1.*math.pi /2 ):
         self.n = int(n_)
@@ -99,8 +109,8 @@ class Polygrams:
     def GetPolygon(self):
         # Compute n points of polygon
         for i in range( self.n ):
-            self.x.append( self.r*math.cos(self.theta*i + self.delta) )
-            self.y.append( self.r*math.sin(self.theta*i + self.delta) )
+            self.x.append( self.r*math.cos(self.theta*i + self.delta) + self.x0 )
+            self.y.append( self.r*math.sin(self.theta*i + self.delta) + self.y0 )
             #print( ' (%d) Angle = %.3f , x =%.3f y =%.3f ' %( i, math.degrees(self.theta*i), self.x[i], self.y[i] ) )
 
         if self.objType == 0 :
@@ -142,10 +152,10 @@ class Polygrams:
             self.xt.append( c[0] )
             self.yt.append( c[1] )
             #print( '(%d,%d) = [ %.3f, %.3f ]' %( i, j, c[0], c[1]) )
-            self.u.append( c[0] )
-            self.v.append( c[1] )
-            self.u.append( self.x[j] )
-            self.v.append( self.y[j] )
+            self.u.append( c[0] + self.x0)
+            self.v.append( c[1] + self.y0)
+            self.u.append( self.x[j] + self.x0)
+            self.v.append( self.y[j] + self.y0)
 
         # Return to starting point
         self.u.append(self.xt[0])
@@ -305,11 +315,12 @@ class Polygrams:
         self.nStep = int( abs(self.r1 - self.r2)/self.bw )
         print(" FlowRate %.3f Speed %.3f Extrude %.3f " %(self.rho, self.Fval, self.Eval ))
 
-    def Construct2D(self, rs= [], rx= [], ry= [] ):
+    def Construct2D(self, zVal, rS=[], rx =[], ry= [], rz =[], rE = [], retract = True  ):
 
         # Rotation angle
         dtheta = 2*math.pi/ self.n
 
+        self.nStep = int( abs(self.r1 - self.r2)/self.bw )
         # Inside-out or outside-in
         dr = self.bw
         r = self.r1 + (self.bw/2)
@@ -321,12 +332,14 @@ class Polygrams:
         for i in range( self.nStep ):
             #print( ' == r = %.3f == \n' %(r))
             self.Create( self.n, r , da_ )
-            self.GetResult(rs, rx, ry)
+            #self.GetResult(rs, rx, ry)
+            self.GetResult(rS, rx, ry, rz, zVal, rE, retract   )
             r = r+ dr
-            #da_ = da_ + dtheta
+            da_ = da_ + dtheta
 
     def Construct3D(self, rS=[], rx =[], ry= [], rz =[], rE = [] ):
 
+        self.nStep = int( abs(self.r1 - self.r2)/self.bw )
         # Rotation angle
         dtheta = 2*math.pi/ self.n
 
@@ -361,7 +374,7 @@ class Polygrams:
                 else :
                     retract = False
                 self.Create( self.n, r , da_ )
-                self.GetResult(rS, rx, ry, rz, zVal, rE, retract   )
+                self.GetResult(rS, rx, ry, rz, zVal, rE, retract )
                 r = r+ dr
 
 
