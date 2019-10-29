@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import math
 from GCodeGenerator import GCodeGenerator
 from ReadRecipe import ReadRecipe
 from PolygonFill import PolygonFill
@@ -19,64 +20,120 @@ rz = []
 rE = []
 
 
-# Setup the outer ring
+# 1. Setup the outer ring
 # Basics for the ring configuration
 polyObj = Polygrams()
 polyObj.setPrintable( rcp.Fval, rcp.rho, rcp.bh, rcp.ts, rcp.fh, rcp.bs, rcp.nLayer )
-#polyObj.setCenter(102.5, 75)
-polyObj.setCenter(110, 108)
-polyObj.setGeometry(70., 72.5, 36, 0)
+# center of circle, inner and outer radius
+xc = rcp.getParameter('CenterX')
+yc = rcp.getParameter('CenterY')
+ri = rcp.getParameter('InnerR')
+ro = rcp.getParameter('OuterR')
+polyObj.setCenter(xc, yc)
+#polyObj.setGeometry(ri, ro, 72, math.pi, 0)
+polyObj.setGeometry(ri, ro, 72, 2.13, 0)
+polyObj.setRetraction(5,-1)
 
-# Basics for the Polygon
+# 2. Basics for the Grids
 polychain = PolygonFill()
 # Setup                    fval,      rho,  beadwidth
 polychain.setParameters( rcp.Fval, rcp.rho, rcp.bs )
 # Setup    tip spacing, bead height, first bead height
 z0 = polychain.setTipHeight( rcp.ts, rcp.bh, rcp.fh )
-spacing_scale = 0.75
-polychain.setArcSpacing( spacing_scale)
+polychain.setRetraction(5, -1)
+yspacing_scale = 0.5
+polychain.setArcSpacing( yspacing_scale)
 
 # Grid printing configuration
-iniX = rcp.getParameter('InitX')
-iniY = rcp.getParameter('InitY')
+dL = rcp.getParameter('dL')
+ds = rcp.getParameter('ds')
+dr = ds + dL
+rc = ri - (rcp.bs/2)
+
+print(' dL = %.3f , ds = %.3f ' %(dL, ds))
+
+# Number of turn at upper and lower polygon
 n_up = int ( rcp.getParameter('N_up') )
 n_low = int ( rcp.getParameter('N_low') )
-ds = rcp.getParameter('ds')
-dL = rcp.getParameter('dL')
 # Thickness of the print
 nBead = int( rcp.getParameter('NBead') )
 # Height of the print
 nSlice = int(rcp.nLayer)
 yscale = rcp.getParameter('YScale')
-dr = ds + dL
-LV = [    dr*3, dr*5,   dr*5,  dr*5,    dr*5,   dr*5,   dr*3 ]
-xV0 = [   22.5,    0,      0,     0,       0,      0, 22.5]
-w0 , h0 = polychain.unitSize(ds,dL,n_up, n_low, nBead, yscale)
-x1 = iniX
-y1 = iniY
-dd = polychain.beadwidth*spacing_scale*2
 
-yV = []
+# Unit size
+dd = polychain.beadwidth*yspacing_scale*2
+w0 , h0 = polychain.unitSize(ds,dL,n_up, n_low, nBead, yscale)
+print(' unit size W:%.3f , h : %.3f ' %(w0, h0))
+# Check starting point
+w1 = w0 + (dL/2)
+x1 = xc - w1
+yr = math.sqrt( (rc*rc) - (w1*w1) )
+y1 = yc + yr - (rcp.bs*2.75)
+NRow = int( yr / (h0+rcp.bs) )*2
+print(' Need %d rows ' %(NRow) )
+
+rr = math.sqrt( pow((x1 -xc),2) + pow((y1-yc),2) )
+sAng = math.acos( (x1-xc)/rr)
+print('start angle is %.3f' %(sAng) )
+
+NEle = 2
+m0 = NEle /2
+LV = []
 xV = []
-for i in range( len(LV) ):
-    x1 = iniX + xV0[i]
+yV = []
+fV = []
+for i in range( NRow ):
+
+    # starting point
     xV.append( x1 )
     yV.append( y1 )
-    y1 = y1 - h0 - ((polychain.beadwidth)*2 ) + dd
-    #y1 = y1 - h0 - ((polychain.beadwidth)*2 ) + dd - i*0.25*polychain.beadwidth
-    #y1 = y1 - h0 - ((polychain.beadwidth)*2 )
-    #iniX = iniX  - (polychain.beadwidth/math.tan( math.pi/(n_up+n_low+2) ))
+    LV.append(dr*NEle)
+    print('[%d] (%.2f,%.2f) with %d' %(i, x1, y1, NEle))
 
-#polychain.addSkirt(iniX, iniY, LV, ds, dL, n_up, n_low, nLayer, 10, scale)
-#polychain.getData4Gcode(rx,ry,rz,rs,rE)
-#print( ' skirt size = %d' %(len(rx)))
+    # connecting x y positions
+    cArc = []
+    y_a = y1 + ( yspacing_scale -1)*rcp.bs
+    yr = y_a - yc
+    x_a = xc - math.sqrt( (rc*rc) - (yr*yr) )
+    cArc.append( [x_a, y_a] )
+
+    # shift y downward
+    y1 = y1 - h0 - ((polychain.beadwidth)*2 ) + dd
+    yr = y1 - yc
+    if abs(yr) > rc :
+        fArc = polyObj.GetPolygonB(50,cArc[-1], fV[0][0] , xc, yc )
+        for it in fArc :
+            cArc.append( it )
+        fV.append( cArc )
+        print('Stop 1')
+        break
+    xr = math.sqrt( (rc*rc) - (yr*yr) )
+    m = int( (xr -(dL/2))/dr )
+    x1 = x1 - (m-m0)*dr
+    NEle = 2*m
+    m0 = m
+
+    # 2nd connecting point
+    if i == NRow -1 :
+        fArc = polyObj.GetPolygonB(50,cArc[-1], fV[0][0] , xc, yc )
+        for it in fArc :
+            cArc.append( it )
+        fV.append( cArc )
+        print('Stop 2')
+    else :
+        yr = y1 - yc
+        x_b = xc - math.sqrt( (rc*rc) - (yr*yr) )
+        cArc.append( [x_b, y1] )
+        fV.append( cArc )
+
 
 ###############################
 # Start construct each layer  #
 ###############################
 
 z0 = rcp.bh + rcp.ts + rcp.fh
-dz = rcp.bh + rcp.ts
+dz = rcp.bh
 zz = z0
 # Add skirt of the circle
 polyObj.AddSkirt(rs, rx, ry, rz, rE )
@@ -86,13 +143,19 @@ for i in range( nSlice ) :
     if i > 0 :
         polychain.reset()
 
-    polyObj.Construct2D(zz, rs, rx, ry, rz, rE, False )
-    x, y = polychain.FillAreaN(xV, yV, LV, ds, dL, n_up, n_low, nBead, zz, yscale)
+    # Circle
+    polyObj.Construct2D(zz, rs, rx, ry, rz, rE, True )
+    # Polygon Fill
+    #x, y = polychain.FillAreaN(xV, yV, LV, ds, dL, n_up, n_low, nBead, zz, yscale)
+    x, y = polychain.FillArea(xV, yV, LV, fV, ds, dL, n_up, n_low, nBead, zz, yscale)
     polychain.getData4Gcode(rx,ry,rz,rs,rE,True)
     print( ' z = %.3f ' %( zz ))
     zz = zz + dz
 
 gc = GCodeGenerator( rs, rx, ry, rz, rE, rcp.Fval, rcp.rho )
+gc.SetGlideSpeed( 400, 400 )
+# Setup gliding time and eRatio for incoming and outgoing of an angle
+gc.Gliding( 0.3, 0.05 , 0.3, 0.05, rs, rx, ry, rz, rE )
 gc.Generate()
 
 

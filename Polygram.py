@@ -66,30 +66,40 @@ class Polygrams:
         self.gFval2 = self.Fval
         self.x0 = 0
         self.y0 = 0
+        # retraction distance and retraaction Eval
+        self.rth = 2
+        self.rEval = -1
 
     def setCenter(self, x0, y0):
 
         self.x0 = x0
         self.y0 = y0
 
-    def setGeometry(self, r1, r2, n , objectType ):
+    def setGeometry(self, r1, r2, n , delta_ , objectType ):
 
         self.n = int( n )
         self.r1 = r1
         self.r2 = r2
         self.objType = objectType
+        self.delta = delta_
         self.nStep = int( abs(self.r1 - self.r2)/self.bw )
 
     def setPrintable(self, Fval_, rho_, bh_, ts_, fh_, bw_, nlayer_ ):
 
         self.Fval = Fval_
         self.rho = rho_
+        self.Eval = self.rho * self.Fval
         self.bh = bh_
         self.ts = ts_
         self.fh = fh_
         self.bw = bw_
         self.nLayer = int( nlayer_ )
         #self.nStep = int( abs(self.r1 - self.r2)/self.bw )
+
+    def setRetraction(self, rth, rEval ):
+
+        self.rth = rth
+        self.rEval = rEval
 
     def SetParameters(self, n_ , r_ , delta_  = -1.*math.pi /2 ):
         self.n = int(n_)
@@ -116,6 +126,56 @@ class Polygrams:
         if self.objType == 0 :
             self.x.append( self.x[0] )
             self.y.append( self.y[0] )
+
+    def GetPolygonA(self, nside, iniA, endA, xc, yc, R ):
+
+        dPhi = 0
+        arcV = []
+        if endA > iniA :
+            dPhi = (endA - iniA) / nside
+        else :
+            dPhi =  (2*math.pi - (iniA - endA )) / nside
+
+        for i in range( nside ) :
+            Phi = iniA + (i*dPhi)
+            x = R*math.cos( Phi ) + xc
+            y = R*math.sin( Phi ) + yc
+            arcV.append( [x,y] )
+
+        return arcV
+
+    def GetPolygonB(self, nside, iniPos, endPos, xc, yc ):
+
+        # Getting initial radius ri and ending radius rj
+        # Initial/ending angle in the range of 0 ~ 2pi
+        ri = math.sqrt( ((xc - iniPos[0] )*(xc-iniPos[0])) + ((yc - iniPos[1] )*(yc-iniPos[1])) )
+        rj = math.sqrt( ((xc - endPos[0] )*(xc-endPos[0])) + ((yc - endPos[1] )*(yc-endPos[1])) )
+        iniA = math.acos( (iniPos[0]-xc )/ri )
+        endA = math.acos( (endPos[0]-xc )/rj )
+        if iniPos[1] < yc :
+            iniA = (math.pi*2) - iniA
+        if endPos[1] < yc :
+            endA = (math.pi*2) - endA
+
+
+        R = ri
+        #dR = (rj - ri) / nside
+        dR = 0
+        dPhi = 0
+        arcV = []
+        if endA > iniA :
+            dPhi = (endA - iniA) / nside
+        else :
+            dPhi =  (2*math.pi - (iniA - endA )) / nside
+
+        for i in range( nside ) :
+            Phi = iniA + (i*dPhi)
+            x = R*math.cos( Phi ) + xc
+            y = R*math.sin( Phi ) + yc
+            arcV.append( [x,y] )
+            R = R + dR
+
+        return arcV
 
 
     # Solve n side of the polygon : y = mx + d
@@ -194,8 +254,8 @@ class Polygrams:
                     rS.append( 2 )
                     rx.append(self.u[i])
                     ry.append(self.v[i])
-                    rz.append( zVal + 2 )
-                    rE.append( eVal )
+                    rz.append( zVal + self.rth )
+                    rE.append( self.rEval )
                     rS.append( 0 )
                     rx.append(self.u[i])
                     ry.append(self.v[i])
@@ -238,8 +298,8 @@ class Polygrams:
                     rS.append( 2 )
                     rx.append(self.x[i])
                     ry.append(self.y[i])
-                    rz.append( zVal + 2 )
-                    rE.append( eVal )
+                    rz.append( zVal + self.rth )
+                    rE.append( self.rEval )
                     rS.append( 0 )
                     rx.append(self.x[i])
                     ry.append(self.y[i])

@@ -27,13 +27,15 @@ class PolygonFill:
         self.z = []
         self.s = []
         self.ads = 0
+        self.rth = 5
+        self.rEval = -1
 
     def setParameters(self, fval_new = 6000 , rho_new = 0.75, bw_new = 0.75 ):
 
         self.Fval = fval_new
         self.rho = rho_new
         self.beadwidth = bw_new
-        self.Eval = fval_new* rho_new
+        self.Eval = self.Fval*self.rho
 
     def setTipHeight(self, ts0 = 0.35 , bh0 = 0.5, fh0 = 0.1):
 
@@ -44,6 +46,10 @@ class PolygonFill:
 
         self.z0 = self.ts + self.bh + self.fh
         return self.z0
+
+    def setRetraction(self, rth, rEval):
+        self.rth = rth
+        self.rEval = rEval
 
     # setup the spacing between upper and lower arc. The default is 1 beadwidth
     # the scale is the addition adjustment
@@ -74,7 +80,6 @@ class PolygonFill:
     def getData4Gcode(self, rx=[], ry=[], rz=[],rs=[], rE=[], retract = False ):
 
         eVal = 0
-        ret_h = 5.0
         for i in range(len(self.s)) :
 
             if i == 0:
@@ -85,13 +90,13 @@ class PolygonFill:
                     print("Retract !")
                     rx.append( rx[ -1 ] )
                     ry.append( ry[ -1 ] )
-                    rz.append( rz[ -1 ] + ret_h )
-                    rE.append( eVal )
+                    rz.append( rz[ -1 ] + self.rth )
+                    rE.append( self.rEval )
                     rs.append( 2 )
                     rx.append(self.u[i])
                     ry.append(self.v[i])
                     rz.append(rz[-1]  )
-                    rE.append( eVal )
+                    rE.append( 0 )
                     rs.append( 0 )
                     rx.append(self.u[i])
                     ry.append(self.v[i])
@@ -262,12 +267,13 @@ class PolygonFill:
 
     def unitSize(self, ds, dL, n, m, k = 1, scale = 1.):
         arcs, h = self.createChain( 0, 0,dL+ds, ds, dL, n, m, k, scale )
-        width = ds
+        width = ds + dL
         #height = h + self.beadwidth
         height = h
         return width, height
 
 
+    # Input starting x,y positions and length (L)
     def FillAreaN(self, xV, yV, LV, ds, dL, n, m, k = 1, z = 0, scale = 1. ):
 
         iniX = xV[0]
@@ -314,6 +320,36 @@ class PolygonFill:
 
         return x, y
 
+    # Input starting x,y positions and length (L)
+    # xV, yV : starting positions, LV: length of the chain
+    # fV : left side connecting points between rows
+    def FillArea(self, xV, yV, LV, fV, ds, dL, n, m, k = 1, z = 0, scale = 1. ):
+
+        iniX = xV[0]
+        iniY = yV[0]
+        x = []
+        y = []
+        for j in range(k) :
+
+            j = j+1
+            for i in range( len(LV) ) :
+                print(' Printing Row %d' %(i))
+
+                # Move to starting point of this row
+                iniX = xV[i]
+                iniY = yV[i]
+                if i%2 == 0 :
+                    arcs, h = self.createChain( iniX, iniY, LV[i],ds, dL, n, m, j, scale)
+                    self.getResult( arcs, x,y, z, 1)
+                else :
+                    arcs, h = self.createChain( iniX, iniY, LV[i],ds, dL, m, n, j, scale)
+                    self.getResult( arcs, x,y, z, 1)
+
+                self.getResult(fV[i], x,y,z, 1 )
+
+
+
+        return x, y
 
     def addSkirt(self, x0, y0, LV, ds, dL, n, m, k, delta = 5, scale = 1 ):
 
