@@ -1,0 +1,29 @@
+
+# Printing parameter set
+PrintSpeed = 750
+FlowRate = 1.0
+NLayer = 6
+
+# Tip Height setup
+BeadHeight = 0.6
+TipSpacing = 0.35
+FirstHeight = 0.
+
+BeadSpacing  = 1.95
+RetractHeight = 5
+
+# Circle printing configuration
+CenterX = 80.
+CenterY = 80.
+InnerR  = 34.
+OuterR  = 36.
+ds = 8.6
+dL = 4.3
+
+# Grid printing configuration
+N_up = 2
+N_low = 2
+# Thickness of the print
+NBead = 1
+# YScale of the polygon shape
+YScale = 1
