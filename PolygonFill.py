@@ -1,7 +1,4 @@
 import math
-import numpy as np
-import matplotlib.pyplot as plt
-from GCodeGenerator import GCodeGenerator
 from ReadRecipe import ReadRecipe
 
 class PolygonFill:
@@ -130,14 +127,16 @@ class PolygonFill:
     # Create upper or lower part of the polygon chains
     # ds < 0 is for the lower part
     # scale is for scaling y position
+    # pos is the return arc position
     def createArc(self, xc, yc, ds, n, pos, scale = 1.):
 
         theta = math.pi / (n+1)
         r = abs(ds/2.)
 
         # Only add the initial point if this is the starting point
-        if len(pos) < 1 :
-            pos.append( [x0,y0] )
+        #if len(pos) < 1 :
+        #    pos.append( [x0,y0] )
+
         j = n
         max_dy = 0
         # This part only fill intermediate points
@@ -164,7 +163,7 @@ class PolygonFill:
         return max_dy
 
 
-    # k is number of layer for the polygon
+    # k is number of bead (wallthickness, not height) for the polygon
     # x0,y0 :  starting position
     # Lx : length of the polygon chain
     # ds : diameter of the polygon, dL : spacing between polygons
@@ -265,12 +264,102 @@ class PolygonFill:
         h = h1+h2
         return arcs, h
 
+    # Generate a general polygon, could be a partial polygon
+    def createPolygon(self, nside, iniPos, endPos, xc, yc ):
+
+        # Getting initial radius ri and ending radius rj
+        # Initial/ending angle in the range of 0 ~ 2pi
+        ri = math.sqrt( ((xc - iniPos[0] )*(xc-iniPos[0])) + ((yc - iniPos[1] )*(yc-iniPos[1])) )
+        rj = math.sqrt( ((xc - endPos[0] )*(xc-endPos[0])) + ((yc - endPos[1] )*(yc-endPos[1])) )
+        iniA = math.acos( (iniPos[0]-xc )/ri )
+        endA = math.acos( (endPos[0]-xc )/rj )
+        if iniPos[1] < yc :
+            iniA = (math.pi*2) - iniA
+        if endPos[1] < yc :
+            endA = (math.pi*2) - endA
+
+
+        R = ri
+        #dR = (rj - ri) / nside
+        dR = 0
+        dPhi = 0
+        arcV = []
+        if endA > iniA :
+            dPhi = (endA - iniA) / nside
+        else :
+            dPhi =  (2*math.pi - (iniA - endA )) / nside
+
+        for i in range( nside ) :
+            Phi = iniA + (i*dPhi)
+            x = R*math.cos( Phi ) + xc
+            y = R*math.sin( Phi ) + yc
+            arcV.append( [x,y] )
+            R = R + dR
+
+        return arcV
+
     def unitSize(self, ds, dL, n, m, k = 1, scale = 1.):
         arcs, h = self.createChain( 0, 0,dL+ds, ds, dL, n, m, k, scale )
         width = ds + dL
         #height = h + self.beadwidth
         height = h
         return width, height
+
+    # iniP and endP are the boundary position
+    # startp is the starting position, it must be between iniP and endP
+    # yScale is to stretch the length
+    # ds < 0 means opposite direction (from right to left)
+    def createLine(self, arcV , iniP, endP, startP, ds, dL, n, yScale = 1 ):
+
+        pathL = abs( endP[0] - iniP[0] )
+        # get the direction
+        pn = 1
+        if ds < 0 :
+            pn = -1
+
+        x = iniP[0]
+        y = iniP[1]
+        arcV.append( [x, y] )
+
+        x = startP[0]
+        y = startP[1]
+        arcV.append( [x, y] )
+
+        dX  = abs(startP[0] - iniP[0])
+        i = 0
+        while dX < pathL :
+
+            #print('(%d) dX = %.3f ' %(i, dX))
+            # creating polygon
+            xc = x + (ds/2)
+            yc = y
+            self.createArc( xc, yc, ds, n, arcV, yScale )
+
+            x = x + ds
+            arcV.append( [x,y] )
+            dX = dX + abs(ds)
+
+            if ( dX + dL ) < pathL :
+                x = x + (dL*pn)
+                arcV.append( [x,y] )
+                dX = dX + dL
+                # if the rest of length is not long enough to get an arc and a connecting segment, stop
+                if ( dX + abs(ds) + dL ) > pathL :
+                    x = endP[0]
+                    y = endP[1]
+                    arcV.append([x,y])
+                    dX = pathL
+                    #print(' finished 1 -  [%.3f , %.3f ]' %(x,y))
+            else :
+                x = endP[0]
+                y = endP[1]
+                arcV.append([x,y])
+                dX = pathL
+                #print(' finished 2 - [%.3f , %.3f ]' %(x,y) )
+
+            i = i+1
+
+
 
 
     # Input starting x,y positions and length (L)
