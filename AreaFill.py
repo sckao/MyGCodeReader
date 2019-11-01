@@ -1,4 +1,5 @@
 import math
+from PolygonFill import PolygonFill
 
 class AreaFill :
 
@@ -55,6 +56,78 @@ class AreaFill :
 
 
         return pV
+
+    def polygonFillCircle(self, xc, yc, r, delta, n, m, ds, dL   ):
+
+        poly = PolygonFill()
+        w0, h0 = poly.unitSize( ds, dL, n, m )
+        print('w: %.3f , h: %.3f' %(w0,h0) )
+
+        # 0. decide the starting point
+        yr = r - delta
+        y0 = yc + yr
+        x0 = xc - w0 + (dL/2)
+        dx = abs(ds) + dL
+        print(' x0 :%.3f y0:%.3f' %(x0, y0) )
+
+        pV = []
+
+        i = 0
+        y = y0
+        dy = poly.beadwidth
+        while y >= (yc - r + h0 ) :
+
+            yr = abs(y - yc)
+            xr = math.sqrt( (r*r) - (yr*yr) )
+            # 1. Decide the boundary
+            x1 = xc - xr*pow(-1,i)
+            x2 = xc + xr*pow(-1,i)
+            # 2. Decide the starting point of each line
+            if abs(x0 - x1) > ( dx + dL):
+                m = int((x1-x0)/dx)
+                x0 = x0 + m*dx
+
+            # 2.1 if x0 is too closed to the boundary , backup
+            if abs(x0 - x1) < dL :
+                if i%2 == 0 :
+                    x0 = x0 + dx
+                if i%2 == 1 :
+                    x0 = x0 - dx
+
+            # 2.2 if x0 is out of the boundary , backup
+            if i%2 == 0 and x0 < x1 :
+                x0 = x0 + dx
+            if i%2 == 1 and x0 > x1 :
+                x0 = x0 - dx
+
+            if i%2 == 0 and i > 0 :
+                # construct connecting arc
+                arcV = self.getPolygon( 3, pV[-1], [x1 ,y], xc, yc )
+                for it in arcV :
+                    pV.append( it )
+
+
+            # 3. Create half arc
+            print('(%d) y = %.3f , [%.3f - %.3f - %.3f] ' %(i, y, x1, x0, x2))
+            poly.createLine( pV, [x1, y], [x2,y], [x0,y] , ds*pow(-1,i), dL, n  )
+
+            # 4. move downward
+            if i%2 == 0 :
+                y = y - dy
+                x0 = xc + abs(xc -x0 )
+            else :
+                y = y - h0 - dy
+                x0 = xc - abs(xc -x0)
+
+            i = i+1
+
+        fArc = poly.createPolygon(50, pV[-1], pV[0], xc, yc )
+        for it in fArc :
+            pV.append( it )
+
+        return pV
+
+
 
 
     def getPolygon(self, nside, iniPos, endPos, xc, yc):
