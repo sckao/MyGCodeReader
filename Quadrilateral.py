@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from GCodeGenerator import GCodeGenerator
 from GCodeGenerator import Ending
 from GCodeGenerator import dLength
-from ReadRecipe import ReadRecipe
+#from ReadRecipe import ReadRecipe
 
 class Rectangle :
 
@@ -27,7 +27,7 @@ class Rectangle :
 
     # Linear density ( or Flow rate )
     rho = 0.6
-    Fval = 2000.
+    Fval = 1000.
     Eval = Fval*rho
 
     u = []
@@ -43,17 +43,38 @@ class Rectangle :
         self.y0 = 0
         self.u = []
         self.v = []
-        recipe = ReadRecipe()
-        recipe.getPrintable()
-        self.Fval = recipe.Fval
-        self.rho = recipe.rho
+
+    # Setup printable
+    def SetPrintable(self, Fval, rho, bh, ts, fh, bw, rd , nlayer ):
+        self.Fval = Fval
+        self.rho = rho
         self.Eval = self.Fval*self.rho
-        self.bh = recipe.bh
-        self.ts = recipe.ts
-        self.fh = recipe.fh
-        self.bw = recipe.bs
-        self.rd = recipe.rh
-        self.nLayer = recipe.nLayer
+        self.bh = bh
+        self.ts = ts
+        self.fh = fh
+        self.bw = bw
+        self.rd = rd
+        self.nLayer = int(nlayer)
+
+    # Setup basic geometry
+    def Setup(self, length, width, phi, nLayer, x0, y0 ):
+
+        self.length = length
+        self.width  = width
+        self.phi    = phi
+        self.nLayer = nLayer
+        self.x0 = x0
+        self.y0 = y0
+
+    # setup filling method
+    def FillingSetup(self, addShell , xBWscale, yBWscale ):
+        self.shelled = addShell
+        self.xBWscale = xBWscale
+        self.yBWscale = yBWscale
+
+    # setup retraction distance
+    def RetractionSetup(self, rh ):
+        self.rd = rh
 
     # phi : 0~ 2pi , angle of d-vector
     # d : travel distance in x, w: total width in y to fill
@@ -133,13 +154,13 @@ class Rectangle :
     # phi : 0~ 2pi , angle of w-vector
     # d : travel distance in x, w: total width in y to fill
     # ud = 1 or -1 => go upward or downward
-    def XZigzagFill(self, ud = 1, addY_bw = 0  ):
+    def XZigzagFill(self, ud = 1, yScale = 1.  ):
 
         phi = self.phi
         LR = 1
         if math.cos(phi) < 0 : LR =  -1
 
-        ybw = self.bw + addY_bw
+        ybw = self.bw*yScale
         dy = ( ybw /abs(math.cos(phi))) + LR*ud*(self.bw*abs(math.tan(phi)))
 
         d = self.length
@@ -149,10 +170,10 @@ class Rectangle :
 
         # Take shell thickness into consideration
         if self.shelled :
-            d = self.length - (2*self.bw/abs(math.cos(phi)))
-            w = self.width - (2*ybw/abs(math.cos(phi)))
-            x = self.x0 + (self.bw*LR)
-            y = self.y0 + (ud*dy )
+            d = self.length - (1*self.bw/abs(math.cos(phi)))
+            w = self.width - (1*ybw/abs(math.cos(phi)))
+            x = self.x0 + (0.5*self.bw*LR)
+            y = self.y0 + (ud*dy*0.5 )
 
         i = 0.
         self.u.append( x )
@@ -176,7 +197,7 @@ class Rectangle :
     # phi : 0~ 2pi , angle of w-vector
     # d : travel distance in x, w: total width in y to fill
     # ud = -1 or 1 => go downward or upward
-    def YZigzagFill(self, ud = 1, addX_bw = 0):
+    def YZigzagFill(self, ud = 1, xScale = 1 ):
 
         phi = self.phi
         LR = 1
@@ -187,7 +208,8 @@ class Rectangle :
         w = self.width
         x = self.x0
         y = self.y0
-        xbw = self.bw + addX_bw
+        #xbw = self.bw + addX_bw
+        xbw = self.bw*xScale
         if self.shelled :
             d = self.length - (2*xbw/abs(math.cos(phi)))
             w = self.width - (2*self.bw/abs(math.cos(phi)))
@@ -273,43 +295,34 @@ class Rectangle :
 
     def Construct3D(self, rx =[], ry= [], rz = [] , rE = [], rS = [] ):
 
-        h = self.height
+        #h = self.height
 
         i = 0
-        z = self.ts + self.bh + self.fh
-        self.AddSkirt( 20, 1 )
-        self.GetResult( z, rx, ry, rz, rE, rS )
+        z = self.ts + self.bh + self.fh + self.zOffset
+        self.AddSkirt( 10, 1 )
+        self.GetResult( z, rx, ry, rz, rE, rS, False )
         self.u = []
         self.v = []
         #while h >= (i*self.bh ) :
         for i in range( self.nLayer ) :
 
             self.AddShell( 1 )
-            self.GetResult( z, rx, ry, rz, rE, rS )
+            self.GetResult( z, rx, ry, rz, rE, rS, False )
             self.u = []
             self.v = []
             print(' Layer %d = %.3f ' %(i,z ))
             if i%2 == 0 :
-                self.XZigzagFill( 1 )
+                self.XZigzagFill( 1, self.yBWscale )
                 self.GetResult( z, rx, ry, rz, rE, rS )
                 self.u = []
                 self.v = []
             else :
-                self.YZigzagFill( 1 )
+                self.YZigzagFill( 1, self.xBWscale )
                 self.GetResult( z, rx, ry, rz, rE, rS )
                 self.u = []
                 self.v = []
 
             z = z + self.bh
-
-    def Setup(self, length, width, phi, nLayer, x0, y0 ):
-
-        self.length = length
-        self.width  = width
-        self.phi    = phi
-        self.nLayer = nLayer
-        self.x0 = x0
-        self.y0 = y0
 
     def ConstructBMW(self, rx =[], ry= [], rz = [] , rE = [], rS = [] ):
 
@@ -458,64 +471,4 @@ class Rectangle :
 
 
 
-rx = []
-ry = []
-rz = []
-rE = []
-rS = []
-
-recObj = Rectangle(15, 10 , 1, math.pi)
-#recObj.ConstructBMW(rx, ry, rz, rE, rS)
-recObj.CustomConstruction( rx, ry, rz, rE, rS )
-
-# Output GCode
-gc = GCodeGenerator( rS, rx, ry, rz, rE, recObj.Fval, recObj.rho )
-
-gc.SetGlideSpeed( 600, 300 )
-# Setup gliding time and eRatio for incoming and outgoing of an angle
-gc.Gliding( 0.1, 0.02 , 0.2, 0.9, rS, rx, ry, rz, rE )
-
-#gc.Shift( 100, 100, 0 )
-gc.Generate()
-
-# setup cavas
-fig = plt.figure( figsize=(7.5,7.5) )
-fig.suptitle( 'Rectangle', fontsize=10, fontweight='bold')
-
-# one sub plot (x,y,index)
-ax = fig.add_subplot(111)
-ax.set_xlabel('x')
-ax.set_ylabel('y')
-
-# Plot XY limit and grid
-plt.xlim([20, 200])
-plt.ylim([20, 200])
-plt.grid(b=True, which='major')
-
-
-# Start Routing (x,y) -> (xt,yt) -> (x,y)
-print( ' total point %d ' %( len(rx)) )
-x_ = rx[0]
-y_ = ry[0]
-nPoint = len( rx )
-for i in range( nPoint -1 ) :
-    dX = rx[i+1] - x_
-    dY = ry[i+1] - y_
-    # print(" i= " + str(i) + "( " + str( i[0]) + ", " + str(i[1]) + ")" )
-    if i == 0 :
-        ax.quiver(x_, y_, dX, dY, angles='xy', scale_units='xy', scale=1, color='green', picker=5)
-    #elif (i%(n*2+1) ) == (n*2):
-    elif i == nPoint -2 :
-        ax.quiver(x_, y_, dX, dY, angles='xy', scale_units='xy', scale=1, color='red', picker=5)
-    elif abs(rS[i+1]) == 2 :
-        ax.quiver(x_, y_, dX, dY, angles='xy', scale_units='xy', scale=1, color='blue', picker=5)
-    elif rS[i+1] == 0 :
-        ax.quiver(x_, y_, dX, dY, angles='xy', scale_units='xy', scale=1, color='black', picker=5)
-    else :
-        ax.quiver(x_, y_, dX, dY, angles='xy', scale_units='xy', scale=1, color='purple', picker=5)
-
-    x_ = rx[i+1]
-    y_ = ry[i+1]
-
-plt.show()
 
