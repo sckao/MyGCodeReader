@@ -3,6 +3,14 @@ import math
 from GWords import GWords
 from GCodeViewer import ShowPath, vMag
 
+###############################
+#       Color Code
+#  black : home vector
+#  blue  : G1 print vector
+#  red   : G0 vector
+#
+###############################
+
 def makeV( p1, p2 ):
 
     q = [ p2[i]-p1[i] for i in range(2)]
@@ -40,6 +48,7 @@ def SaveNewGCode( gfile, gword ):
         para = para + ' ' + i
 
     if  cmd == 'Comment' :
+        gfile.write( gword.description + '\n' )
         return
     elif  cmd != 'G0' and cmd != 'G1' :
         gfile.write( cmd + para + '\n' )
@@ -82,7 +91,7 @@ dL = 0.
 dr = 0.
 # Total Print length
 totalL = 0.
-# line density
+# linear density
 rho = 0.
 gd = GWords()
 Flush = False

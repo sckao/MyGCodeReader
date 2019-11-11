@@ -211,7 +211,7 @@ def SetQuiver( ax, gV,  X0 = 0. , Y0 = 0. ) :
 
 
 # gV contains the positions of every X-Y movement, color code and moveType
-def ShowPath( gV, gfile, xlimL = -5, xlimR = 295, ylimB = -5, ylimT = 295 ):
+def ShowPath( gV, gfile, xlimL = -5, xlimR = 355, ylimB = -5, ylimT = 305 ):
 
     # setup cavas
     fig = plt.figure( figsize=(8,8) )
