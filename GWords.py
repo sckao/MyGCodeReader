@@ -11,6 +11,7 @@ class GWords :
     isG0G1 = False
     retract = False
     command = ''
+    description = ''
     para = ''
     color = ''
     update = [0,0,0,0,0] # [x,y,z,e,f]
@@ -23,7 +24,8 @@ class GWords :
         self.update = [0,0,0,0,0]
         self.eVal = 0.
 
-    def getPos(self):
+    # update positions
+    def getPos(self, sx =0, sy =0, sz =0):
 
         if len( self.gWords ) < 1:
             print("No Entry")
@@ -35,15 +37,15 @@ class GWords :
             for ig in self.gWords :
                 if ig[0] == 'X':
                     if float(ig[1:]) != self.xVal :
-                        self.xVal = float(ig[1:])
+                        self.xVal = float(ig[1:]) + sx
                         self.update[0] = 1
                 if ig[0] == 'Y':
                     if float(ig[1:]) != self.yVal :
-                        self.yVal = float(ig[1:])
+                        self.yVal = float(ig[1:]) + sy
                         self.update[1] = 1
                 if ig[0] == 'Z':
                     if float(ig[1:]) != self.zVal :
-                        self.zVal = float(ig[1:])
+                        self.zVal = float(ig[1:]) + sz
                         self.update[2] = 1
                 if ig[0] == 'E':
                     if float(ig[1:]) != self.eVal :
@@ -78,6 +80,7 @@ class GWords :
 
         elif self.gWords[0][0] == ';':
             self.command = 'Comment'
+            self.description = ' '.join(self.gWords)
 
     def posUpdated(self):
 
