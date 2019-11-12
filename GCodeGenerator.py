@@ -112,6 +112,8 @@ class GCodeGenerator :
         self.sz = 0
         self.sE = 1
         self.sF = 1
+        self.ratioA = 5000
+        self.ratioB = 5000
 
 
     def Shift(self, sx0 = 0., sy0 = 0. , sz0 = 0., sE0 = 1., sF0 = 1. ):
@@ -126,6 +128,13 @@ class GCodeGenerator :
         self.gF1 = F1
         self.gF2 = F2
 
+    # Mixing ratio is defined as A/B
+    def setMixingRatio(self, ratio = 1 ):
+
+        rb = int ( 10000/(ratio + 1) )
+        ra = int ( 10000 - rb )
+        self.ratioB = rb
+        self.ratioA = ra
 
     def Retract(self, up = 2, down = 2, rS = [], rx = [], ry = [], rz = [], rE = []  ):
 
@@ -285,18 +294,35 @@ class GCodeGenerator :
 
             if i == 0 :
                 gfile.write('G90\n')
-                gfile.write('M83\n')
+                gfile.write('T0\n')
+                gfile.write('M83                            ; Relative extrusion mode\n')
                 gfile.write('M106 S0\n')
+                gfile.write('G21                            ; Set unit to mm \n')
                 gfile.write('G28                            ; Home \n')
                 gfile.write('G92 E0                         ; Reset E \n')
+                # setup index
+                gfile.write('M163 S0 P%d                    ; Set extruder mix ratio B\n' %(self.ratioB))
+                gfile.write('M163 S1 P%d                    ; Set extruder mix ratio A\n' %(self.ratioA))
+
+                # index 1.85
+                #gfile.write('M163 S0 P3509                     ; Set extruder mix ratio B for 1.35:1\n')
+                #gfile.write('M163 S1 P6491                     ; Set extruder mix ratio A for 1.35:1\n')
+                # index 1.75
+                #gfile.write('M163 S0 P3636                     ; Set extruder mix ratio B for 1.35:1\n')
+                #gfile.write('M163 S1 P6364                     ; Set extruder mix ratio A for 1.35:1\n')
+                # index 1.50
+                #gfile.write('M163 S0 P4000                     ; Set extruder mix ratio B for 1.35:1\n')
+                #gfile.write('M163 S1 P6000                     ; Set extruder mix ratio A for 1.35:1\n')
+                # index 1.35
+                #gfile.write('M163 S0 P4255                     ; Set extruder mix ratio B for 1.35:1\n')
+                #gfile.write('M163 S1 P5745                     ; Set extruder mix ratio A for 1.35:1\n')
                 # index 1.25
-                #gfile.write('M163 S0 P4444                     ; Set extruder mix ratio B for 1:1\n')
-                #gfile.write('M163 S1 P5556                     ; Set extruder mix ratio A for 1:1\n')
+                #gfile.write('M163 S0 P4444                     ; Set extruder mix ratio B for 1.25:1\n')
+                #gfile.write('M163 S1 P5556                     ; Set extruder mix ratio A for 1.25:1\n')
                 # index 1.1
-                gfile.write('M163 S0 P4762                     ; Set extruder mix ratio B for 1:1\n')
-                gfile.write('M163 S1 P5238                     ; Set extruder mix ratio A for 1:1\n')
+                #gfile.write('M163 S0 P4762                     ; Set extruder mix ratio B for 1.1:1\n')
+                #gfile.write('M163 S1 P5238                     ; Set extruder mix ratio A for 1.1:1\n')
                 gfile.write('M163 S2 P0                     ; Enable Extruder \n')
-                gfile.write('T0\n')
                 gfile.write('G1 Z15.0\n')
                 gfile.write('G0 X%.3f Y%.3f F%.0f\n' %( xVal, yVal, fVal ) )
 

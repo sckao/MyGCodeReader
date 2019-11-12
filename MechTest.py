@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 rcp = ReadRecipe('mechtest_rcp_prep1.txt')
 # Get all printing parameters from the recipe file
 rcp.getPrintable()
+index = rcp.getParameter('Index')
 length = rcp.getParameter('Length')
 width = rcp.getParameter('Width')
 angle = rcp.getParameter('Angle')
@@ -28,7 +29,7 @@ recObj.Construct3D( rx, ry, rz, rE, rS )
 
 # Output GCode
 gc = GCodeGenerator( rS, rx, ry, rz, rE, rcp.Fval, rcp.rho )
-
+gc.setMixingRatio( index )
 gc.SetGlideSpeed( 300, 300 )
 # Setup gliding time and eRatio for incoming and outgoing of an angle
 gc.Gliding( 0.2, 0.5 , 0.2, 0.5, rS, rx, ry, rz, rE )

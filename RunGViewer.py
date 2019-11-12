@@ -6,7 +6,8 @@ from GCodeViewer import ShowPath, vMag
 ###############################
 #       Color Code
 #  black : home vector
-#  blue  : G1 print vector
+#  blue  : G1 , E > 0
+#  Green : G1 , E <= 0
 #  red   : G0 vector
 #
 ###############################
@@ -59,23 +60,52 @@ def SaveNewGCode( gfile, gword ):
             gfile.write( cmd + ' X%.3f Y%.3f Z%.3f E%.4f\n' %(gword.xVal, gword.yVal, gword.zVal, gword.eVal) )
 
 
+def ReadGFile() :
+
+    fname    = input('Read filename : ')
+    f = open(fname, 'r+')
+
+    vlines = []
+    for line in f:
+
+        #print(line, end='')
+        if len( line ) < 1 :
+            print( ' line size = ' + str( len(line)) )
+            continue
+
+        # Keep the line
+        vlines.append(line)
+
+        # Find out actual z slice position
+        #words = line.split()
+        #if words[0] == 'G0' or words[0] == 'G1' :
+        #    for ig in words :
+        #        if ig[0] == Z :
+        #            z = float(ig[1:])
+
+
+    return vlines
+
+
 ##############################################
 #           Main : Start Reading             #
 ##############################################
 
-# Read files and output GCode results
+# Read GCode File into a buffer (glines)
 fname    = input('Read filename : ')
+f = open(fname, 'r+')
+#glines =  ReadGFile()
 
-foutname = input('Write filename : ')
-if foutname == '' :
-    foutname = 'out.txt'
+#foutname = input('Write filename : ')
+#if foutname == '' :
+#    foutname = 'out.txt'
+foutname = 'out.txt'
+fout = open( foutname, 'w')
 
 gfilename = input('Output GCode filename : ')
 if gfilename == '' :
     gfilename = 'gout.gcode'
 
-f = open(fname, 'r+')
-fout = open( foutname, 'w')
 gfile = open( gfilename, 'w' )
 
 fout.write( '   id,     X,     Y,     Z,    dr,    rho,    E,    sumL \n' )
@@ -96,13 +126,19 @@ rho = 0.
 gd = GWords()
 Flush = False
 
+#f.seek(40000)
+
+k = 0
 # z0 : previous z position , zL : Layer z position, will be detected if E > 0
 for line in f:
-    #print(line, end='')
 
     if len( line ) < 1 :
-        print( ' line size = ' + str( len(line)) )
+        #print( ' line size = ' + str( len(line)) )
         continue
+
+    #k = k + 1
+    #if  k < 20000  :
+    #    continue
 
     # Read line from the file
     gd.readline( line )
@@ -111,18 +147,17 @@ for line in f:
     # Get command ( G, M or ... )
     gd.getCommand()
     cmd = gd.command
+
     # Get X Y Z E F
     gd.getPos()
     SaveNewGCode( gfile, gd)
 
     if cmd == 'G28':
-        print(' Home - Initialized ' + cmd +' \n')
+        #print(' Home - Initialized ' + cmd +' \n')
         v.append( [ 0, 0, 0, 0, 'black', 0 ] )
 
     # if one of x,y,z moved
     if  gd.posUpdated() :
-        #print( " B %d - XYZ [%d , %d , %d] ! " %(i, gd.update[0], gd.update[1], gd.update[2]))
-        #print( " = XYZ [%.3f , %.3f , %.3f,  %.3f] ! " %( gd.xVal, gd.yVal, gd.zVal, gd.eVal))
 
         # Record each position and motion type with its color code
         v.append( [gd.xVal, gd.yVal, gd.zVal, gd.eVal, gd.color, gd.moveType ] )

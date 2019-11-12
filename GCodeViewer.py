@@ -170,6 +170,10 @@ def vMag( vec ):
 
 def SetQuiver( ax, gV,  X0 = 0. , Y0 = 0. ) :
 
+    # gV[0 ~ 5] : x, y, z, E, color, moveType
+    # move type <= 3 : only X,Y movement
+    # move type == 4 : only Z movement
+
     # adding vectors
     X = X0
     Y = Y0
@@ -181,8 +185,9 @@ def SetQuiver( ax, gV,  X0 = 0. , Y0 = 0. ) :
     rC = []
     j = 0
     for i in gV :
-        # XYZ movement
-        if  i[5] <= 3 and j != len(gV)-1  :
+
+        # XY movement and not the last point
+        if  i[5] != 4 and j != len(gV)-1  :
 
             dX = i[0] - X
             dY = i[1] - Y
@@ -193,14 +198,14 @@ def SetQuiver( ax, gV,  X0 = 0. , Y0 = 0. ) :
             Y += dY
         # Z only movement - get information for a scatter plot
         if i[5] == 4 :
-            if i[2] == 'orange' :
+            if i[2] == 'green' :
                 sX.append( i[0] )
                 sY.append( i[1] )
-                sC.append( 'orange' )
+                sC.append( 'green' )
             else :
                 rX.append( i[0] )
                 rY.append( i[1] )
-                rC.append( 'black' )
+                rC.append( 'purple' )
 
         j = j+1
 

@@ -62,10 +62,13 @@ class GWords :
                     self.update[4] = 1
 
             # Move Type is only defined by  first 3 bits (x,y,z)
+            # if only x,y move , it will be 011 , which is 3
+            # if only z move , it will be 100 , which is 4
             out = 0
             for bit in reversed(self.update) :
                 out = ( out << 1 ) | bit
 
+            # 7 is 111 in binary
             self.moveType = out & 7
             self.GetColor()
 
@@ -95,15 +98,15 @@ class GWords :
         if self.command == 'G0' and self.moveType <= 3 :
             self.color = 'red'
         elif self.command =='G1' and self.eVal <= 0 and self.moveType <= 3 :
-            self.color = 'green'
+            self.color = 'orange'
         elif self.command == 'G1' and self.eVal > 0 and self.moveType <= 3 :
             self.color = 'blue'
 
         if self.moveType >= 4 :
             if self.retract :
-                self.color = 'black'
+                self.color = 'green'
             else :
-                self.color = 'orange'
+                self.color = 'purple'
 
 
 

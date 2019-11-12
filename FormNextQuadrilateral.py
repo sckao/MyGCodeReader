@@ -34,7 +34,8 @@ polyObj.setRetraction(rcp.rh,-1)
 # 2. Zigzag Filling
 cl = AreaFill()
 cl.setPrintable(rcp.Fval, rcp.rho, rcp.bs )
-rl = ri - rcp.bs
+#rl = ri - (rcp.bs)
+rl = ri - (rcp.bs/2)
 clV = cl.LineFillCircle(xc, yc, rl, 2*rcp.bs )
 
 ang = math.acos( (rl-(2*rcp.bs))/rl )
@@ -51,12 +52,11 @@ zz = z0
 for i in range( nSlice ) :
 
     # 1.  Circle
-    polyObj.Construct2D(zz, rs, rx, ry, rz, rE, True )
+    #polyObj.Construct2D(zz, rs, rx, ry, rz, rE, True )
     # 2. Zigzag Fill
     cl.getResult( clV, zz, rs, rx, ry, rz, rE, True )
 
-    Ending( 2, rs, rx, ry, rz, rE )
-
+    #Ending( 2, rs, rx, ry, rz, rE )
 
     print( ' z = %.3f ' %( zz ))
     zz = zz + dz
@@ -65,11 +65,9 @@ for i in range( nSlice ) :
 # Output GCode
 gc = GCodeGenerator( rs, rx, ry, rz, rE, rcp.Fval, rcp.rho )
 
-gc.SetGlideSpeed( 300, 300 )
+#gc.SetGlideSpeed( 300, 300 )
 # Setup gliding time and eRatio for incoming and outgoing of an angle
-gc.Gliding( 0.4, 0.1 , 0.4, 0.1, rs, rx, ry, rz, rE )
-
-#gc.Shift( 0, 0, 0 )
+#gc.Gliding( 0.2, 0.0 , 0.2, 1.0, rs, rx, ry, rz, rE )
 
 gc.Generate()
 
