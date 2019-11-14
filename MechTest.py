@@ -4,7 +4,7 @@ from GCodeGenerator import GCodeGenerator
 import matplotlib.pyplot as plt
 
 # Get basic 8 printing parameters
-rcp = ReadRecipe('mechtest_rcp_prep1.txt')
+rcp = ReadRecipe('mechtest_rcp_idxTest.txt')
 # Get all printing parameters from the recipe file
 rcp.getPrintable()
 index = rcp.getParameter('Index')
@@ -30,12 +30,21 @@ recObj.Construct3D( rx, ry, rz, rE, rS )
 # Output GCode
 gc = GCodeGenerator( rS, rx, ry, rz, rE, rcp.Fval, rcp.rho )
 gc.setMixingRatio( index )
-gc.SetGlideSpeed( 300, 300 )
+gc.initTool()
+gc.tipWipe(30, 50, 100 )
+#gc.SetGlideSpeed( 300, 300 )
 # Setup gliding time and eRatio for incoming and outgoing of an angle
-gc.Gliding( 0.2, 0.5 , 0.2, 0.5, rS, rx, ry, rz, rE )
+#gc.Gliding( 0.2, 0.5 , 0.2, 0.5, rS, rx, ry, rz, rE )
 
 #gc.Shift( 100, 100, 0 )
 gc.Generate()
+
+#gc.setMixingRatio( index + 0.25 )
+#gc.setIndex()
+#gc.Shift( 0, 60, 0 )
+#gc.Generate()
+
+gc.EndingGCode()
 
 # setup cavas
 fig = plt.figure( figsize=(7.5,7.5) )

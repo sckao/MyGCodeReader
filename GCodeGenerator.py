@@ -32,13 +32,11 @@ def dLength(x1, y1, x2, y2) :
 # segment is from (x1,y1) to (x2,y2)
 def BreakSegment( x1,y1, x2,y2, ratio ):
 
-    L = dLength( x1, y1, x2, y2 )
     dx = x2 -x1
     dy = y2 -y1
     x0 =  x2 - dx*ratio
     y0 =  y2 - dy*ratio
     return [x0,y0]
-
 
 # rs status = 9 for ending
 # For a printing section, slow down in the end ( in the final "flength" )
@@ -114,6 +112,13 @@ class GCodeGenerator :
         self.sF = 1
         self.ratioA = 5000
         self.ratioB = 5000
+        self.angle0 = 1.57
+
+        # Open a text file
+        gfilename = input('Generated GCode filename : ')
+        if gfilename == '':
+            gfilename = 'gout.gcode'
+        self.gfile = open( gfilename , 'w')
 
 
     def Shift(self, sx0 = 0., sy0 = 0. , sz0 = 0., sE0 = 1., sF0 = 1. ):
@@ -144,6 +149,7 @@ class GCodeGenerator :
              rz.append( rz[i]+ up  )
              rE.append( -1  )
              rS.append( 2 )
+
 
 
     # Perform gliding
@@ -262,24 +268,75 @@ class GCodeGenerator :
 
         print(' Gliding done !')
 
+    # set mixing ratio
+    def setIndex(self):
+        self.gfile.write('; Set up mixing ratio \n')
+        self.gfile.write('M163 S0 P%d                    ; Set extruder mix ratio B\n' %(self.ratioB))
+        self.gfile.write('M163 S1 P%d                    ; Set extruder mix ratio A\n' %(self.ratioA))
+        self.gfile.write('M163 S2 P0                     ; Enable Extruder \n')
+        self.gfile.write('M83                            ; Relative extrusion mode\n')
+
+    # At least 30 sec for each pause.
+    def tipWipe(self, pauseTime = 60.0, nextX = 50 , nextY = 50  ):
+
+        # Center of the drain cup
+        x0 = 360
+        y0 = 10
+
+        # number of pause/drain cycle
+        n = int ( pauseTime / 30)
+        if pauseTime%30 > 0 :
+            n = n + 1
+
+
+        self.gfile.write('; Pause and Flush tip \n')
+        self.gfile.write('G0 Z35.000 F8000 \n')
+        self.gfile.write('G0 Y%.3f F8000 \n' %(y0) )
+        self.gfile.write('G0 X%.3f F8000 \n' %(x0) )
+        for i in range(n) :
+            self.gfile.write('G4 S30.0                 ; Pause for (time) seconds \n')
+            self.gfile.write('G1 E80 F8000 \n')
+        self.gfile.write('G4 S3.0 \n')
+        self.gfile.write('G0 X325.000 Y6.000 F8000 \n')
+        self.gfile.write('G0 Z26.000 F8000 \n')
+        self.gfile.write('G0 X290.000 Y6.000 F8000 \n')
+        self.gfile.write('G0 X325.000 Y6.000 F8000 \n')
+        self.gfile.write('G0 X290.000 Y6.000 F8000 \n')
+        self.gfile.write('G0 Z27.025 F8000 \n')
+        self.gfile.write('G0 X%.3f Y%.3f F8000 \n' %( nextX, nextY) )
+
+
+    def initTool(self):
+        self.gfile.write('G21                            ; Set unit to mm \n')
+        self.gfile.write('T0\n')
+        self.gfile.write('G90\n')
+        self.gfile.write('G28                            ; Home \n')
+        self.gfile.write('G92 E0                         ; Reset E \n')
+        # setup index
+        self.gfile.write('M163 S0 P%d                    ; Set extruder mix ratio B\n' %(self.ratioB))
+        self.gfile.write('M163 S1 P%d                    ; Set extruder mix ratio A\n' %(self.ratioA))
+        self.gfile.write('M163 S2 P0                     ; Enable Extruder \n')
+        self.gfile.write('M83                            ; Relative extrusion mode\n')
+        self.gfile.write('G1 Z15.0\n')
+
     def Generate(self):
 
         # Open a text file
-        gfilename = input('Generated GCode filename : ')
-        if gfilename == '':
-            gfilename = 'gout.gcode'
-        gfile = open( gfilename , 'w')
+        #gfilename = input('Generated GCode filename : ')
+        #if gfilename == '':
+        #    gfilename = 'gout.gcode'
+        #gfile = open( gfilename , 'w')
 
         nPoint = len(self.rx)
         print(' total steps %d ' % ( nPoint ))
 
-        xVal = self.rx[0]
-        yVal = self.ry[0]
-        zVal = self.rz[0]
-        eVal = self.rE[0]
-        fVal = self.F
-        gfVal1 = self.gF1
-        gfVal2 = self.gF2
+        #xVal = self.rx[0]
+        #yVal = self.ry[0]
+        #zVal = self.rz[0]
+        #eVal = self.rE[0]
+        #fVal = self.F
+        #gfVal1 = self.gF1
+        #gfVal2 = self.gF2
 
 
         for i in range(nPoint):
@@ -292,78 +349,69 @@ class GCodeGenerator :
             gfVal1 = self.gF1*self.sF
             gfVal2 = self.gF2*self.sF
 
+            '''
             if i == 0 :
-                gfile.write('G90\n')
-                gfile.write('T0\n')
-                gfile.write('M83                            ; Relative extrusion mode\n')
-                gfile.write('M106 S0\n')
-                gfile.write('G21                            ; Set unit to mm \n')
-                gfile.write('G28                            ; Home \n')
-                gfile.write('G92 E0                         ; Reset E \n')
+                self.gfile.write('G21                            ; Set unit to mm \n')
+                self.gfile.write('T0\n')
+                self.gfile.write('G90\n')
+                self.gfile.write('G28                            ; Home \n')
+                self.gfile.write('G92 E0                         ; Reset E \n')
                 # setup index
-                gfile.write('M163 S0 P%d                    ; Set extruder mix ratio B\n' %(self.ratioB))
-                gfile.write('M163 S1 P%d                    ; Set extruder mix ratio A\n' %(self.ratioA))
-
-                # index 1.85
-                #gfile.write('M163 S0 P3509                     ; Set extruder mix ratio B for 1.35:1\n')
-                #gfile.write('M163 S1 P6491                     ; Set extruder mix ratio A for 1.35:1\n')
-                # index 1.75
-                #gfile.write('M163 S0 P3636                     ; Set extruder mix ratio B for 1.35:1\n')
-                #gfile.write('M163 S1 P6364                     ; Set extruder mix ratio A for 1.35:1\n')
-                # index 1.50
-                #gfile.write('M163 S0 P4000                     ; Set extruder mix ratio B for 1.35:1\n')
-                #gfile.write('M163 S1 P6000                     ; Set extruder mix ratio A for 1.35:1\n')
-                # index 1.35
-                #gfile.write('M163 S0 P4255                     ; Set extruder mix ratio B for 1.35:1\n')
-                #gfile.write('M163 S1 P5745                     ; Set extruder mix ratio A for 1.35:1\n')
-                # index 1.25
-                #gfile.write('M163 S0 P4444                     ; Set extruder mix ratio B for 1.25:1\n')
-                #gfile.write('M163 S1 P5556                     ; Set extruder mix ratio A for 1.25:1\n')
-                # index 1.1
-                #gfile.write('M163 S0 P4762                     ; Set extruder mix ratio B for 1.1:1\n')
-                #gfile.write('M163 S1 P5238                     ; Set extruder mix ratio A for 1.1:1\n')
-                gfile.write('M163 S2 P0                     ; Enable Extruder \n')
-                gfile.write('G1 Z15.0\n')
-                gfile.write('G0 X%.3f Y%.3f F%.0f\n' %( xVal, yVal, fVal ) )
+                self.gfile.write('M163 S0 P%d                    ; Set extruder mix ratio B\n' %(self.ratioB))
+                self.gfile.write('M163 S1 P%d                    ; Set extruder mix ratio A\n' %(self.ratioA))
+                self.gfile.write('M163 S2 P0                     ; Enable Extruder \n')
+                self.gfile.write('M83                            ; Relative extrusion mode\n')
+                self.gfile.write('G1 Z15.0\n')
+            '''
+            if i == 0 :
+                self.gfile.write('G0 X%.3f Y%.3f F%.0f\n' %( xVal, yVal, fVal ) )
 
             if self.rs[i] == 1 :
-                gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%.0f\n' %( xVal, yVal, zVal, eVal, fVal ) )
+                self.gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%.0f\n' %( xVal, yVal, zVal, eVal, fVal ) )
 
             if self.rs[i] == 0 :
-                gfile.write( '; Retract move \n'  )
-                gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%0.0f\n' %( xVal, yVal, zVal, eVal, fVal  ) )
+                self.gfile.write( '; Retract move \n'  )
+                self.gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%0.0f\n' %( xVal, yVal, zVal, eVal, fVal  ) )
 
             if self.rs[i] == -2 :
-                gfile.write( '; Retract Stop \n'  )
-                gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f\n' %( xVal, yVal, zVal, eVal ) )
+                self.gfile.write( '; Retract Stop \n'  )
+                self.gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f\n' %( xVal, yVal, zVal, eVal ) )
 
             if self.rs[i] == 2 :
-                gfile.write( '; Retract Start \n'  )
-                gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%.0f\n' %( xVal, yVal, zVal, eVal, fVal ) )
-                gfile.write( 'G4 P500\n' )
+                self.gfile.write( '; Retract Start \n'  )
+                self.gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%.0f\n' %( xVal, yVal, zVal, eVal, fVal ) )
+                self.gfile.write( 'G4 P500\n' )
 
             # status 3 and 4 is for gliding, slow down and giving lower extrude amount
             if self.rs[i] == 3 :
-                gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%.0f\n' %( xVal, yVal, zVal, eVal, gfVal1 ) )
+                self.gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%.0f\n' %( xVal, yVal, zVal, eVal, gfVal1 ) )
 
             if self.rs[i] == 4 :
-                gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%.0f\n' %( xVal, yVal, zVal, eVal, gfVal2 ) )
+                self.gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%.0f\n' %( xVal, yVal, zVal, eVal, gfVal2 ) )
 
             # This is the finishing segment, stop extruding and slow down to 25% of speed
             if self.rs[i] == 9 :
-                gfile.write( '; Ending section\n'  )
-                gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%.0f\n' %( xVal, yVal, zVal, eVal, fVal/4 ) )
-
+                self.gfile.write( '; Ending section\n'  )
+                self.gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%.0f\n' %( xVal, yVal, zVal, eVal, fVal/4 ) )
 
             if i == (nPoint -1) :
-                gfile.write('G1 E-5.000\n')
-                gfile.write('G4 P2000\n')
-                gfile.write('G0 Z%.3f\n' %(self.rz[i]+50))
-                gfile.write('G0 X0.0 Y0.0\n')
-                gfile.write('M104 S0\n')       # Disable Extruder
-                gfile.write('M84 S0\n')        # Disable Motor
+                self.gfile.write('G1 E-5.000\n')
+                self.gfile.write('G4 P2000\n')
+                self.gfile.write('G0 Z%.3f\n' %(self.rz[i]+50))
+                #self.gfile.write('G0 X0.0 Y0.0\n')
+                #self.gfile.write('M104 S0\n')       # Disable Extruder
+                #self.gfile.write('M84 S0\n')        # Disable Motor
 
 
 
-        gfile.close()
+    def EndingGCode(self):
+
+        self.gfile.write('; ---- Ending ---- \n')
+        self.gfile.write('G1 E-5.000\n')
+        self.gfile.write('G4 P2000\n')
+        self.gfile.write('G0 X0.0 Y0.0\n')
+        self.gfile.write('M104 S0\n')       # Disable Extruder
+        self.gfile.write('M84 S0\n')        # Disable Motor
+        self.gfile.close()
+
 

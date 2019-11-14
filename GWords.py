@@ -25,7 +25,7 @@ class GWords :
         self.eVal = 0.
 
     # update positions
-    def getPos(self, sx =0, sy =0, sz =0):
+    def getPos(self, sx =0, sy =0, sz =0, sE = 1. ):
 
         if len( self.gWords ) < 1:
             print("No Entry")
@@ -49,7 +49,7 @@ class GWords :
                         self.update[2] = 1
                 if ig[0] == 'E':
                     if float(ig[1:]) != self.eVal :
-                        self.eVal = float(ig[1:])
+                        self.eVal = float(ig[1:])*sE
                         self.update[3] = 1
 
                     if float(self.eVal) <= 0. :
