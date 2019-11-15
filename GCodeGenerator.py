@@ -277,11 +277,18 @@ class GCodeGenerator :
         self.gfile.write('M83                            ; Relative extrusion mode\n')
 
     # At least 30 sec for each pause.
-    def tipWipe(self, pauseTime = 60.0, nextX = 50 , nextY = 50  ):
+    def tipWipe(self, pauseTime = 60.0, purgeE = 80, nextX = 50 , nextY = 50  ):
 
         # Center of the drain cup
         x0 = 360
         y0 = 10
+        # Distance between cup center to brush left edge
+        Lcb = 36
+        # Brush Length
+        Lbrush = 35
+        # wiping range (between xL and xR)
+        xL = x0 -Lcb
+        xR = xL - Lbrush
 
         # number of pause/drain cycle
         n = int ( pauseTime / 30)
@@ -295,13 +302,17 @@ class GCodeGenerator :
         self.gfile.write('G0 X%.3f F8000 \n' %(x0) )
         for i in range(n) :
             self.gfile.write('G4 S30.0                 ; Pause for (time) seconds \n')
-            self.gfile.write('G1 E80 F8000 \n')
+            self.gfile.write('G1 E%.3f F8000 \n' %(purgeE) )
+
+        if n == 0 :
+            self.gfile.write('G1 E%.3f F8000 \n' %(purgeE) )
+
         self.gfile.write('G4 S3.0 \n')
-        self.gfile.write('G0 X325.000 Y6.000 F8000 \n')
+        self.gfile.write('G0 X%.3f Y6.000 F8000 \n' %(xL))
         self.gfile.write('G0 Z26.000 F8000 \n')
-        self.gfile.write('G0 X290.000 Y6.000 F8000 \n')
-        self.gfile.write('G0 X325.000 Y6.000 F8000 \n')
-        self.gfile.write('G0 X290.000 Y6.000 F8000 \n')
+        self.gfile.write('G0 X%.3f Y6.000 F8000 \n' %(xR) )
+        self.gfile.write('G0 X%.3f Y6.000 F8000 \n' %(xL) )
+        self.gfile.write('G0 X%.3f Y6.000 F8000 \n' %(xR) )
         self.gfile.write('G0 Z27.025 F8000 \n')
         self.gfile.write('G0 X%.3f Y%.3f F8000 \n' %( nextX, nextY) )
 
@@ -321,23 +332,8 @@ class GCodeGenerator :
 
     def Generate(self):
 
-        # Open a text file
-        #gfilename = input('Generated GCode filename : ')
-        #if gfilename == '':
-        #    gfilename = 'gout.gcode'
-        #gfile = open( gfilename , 'w')
-
         nPoint = len(self.rx)
         print(' total steps %d ' % ( nPoint ))
-
-        #xVal = self.rx[0]
-        #yVal = self.ry[0]
-        #zVal = self.rz[0]
-        #eVal = self.rE[0]
-        #fVal = self.F
-        #gfVal1 = self.gF1
-        #gfVal2 = self.gF2
-
 
         for i in range(nPoint):
 
@@ -349,20 +345,6 @@ class GCodeGenerator :
             gfVal1 = self.gF1*self.sF
             gfVal2 = self.gF2*self.sF
 
-            '''
-            if i == 0 :
-                self.gfile.write('G21                            ; Set unit to mm \n')
-                self.gfile.write('T0\n')
-                self.gfile.write('G90\n')
-                self.gfile.write('G28                            ; Home \n')
-                self.gfile.write('G92 E0                         ; Reset E \n')
-                # setup index
-                self.gfile.write('M163 S0 P%d                    ; Set extruder mix ratio B\n' %(self.ratioB))
-                self.gfile.write('M163 S1 P%d                    ; Set extruder mix ratio A\n' %(self.ratioA))
-                self.gfile.write('M163 S2 P0                     ; Enable Extruder \n')
-                self.gfile.write('M83                            ; Relative extrusion mode\n')
-                self.gfile.write('G1 Z15.0\n')
-            '''
             if i == 0 :
                 self.gfile.write('G0 X%.3f Y%.3f F%.0f\n' %( xVal, yVal, fVal ) )
 
@@ -398,9 +380,6 @@ class GCodeGenerator :
                 self.gfile.write('G1 E-5.000\n')
                 self.gfile.write('G4 P2000\n')
                 self.gfile.write('G0 Z%.3f\n' %(self.rz[i]+50))
-                #self.gfile.write('G0 X0.0 Y0.0\n')
-                #self.gfile.write('M104 S0\n')       # Disable Extruder
-                #self.gfile.write('M84 S0\n')        # Disable Motor
 
 
 

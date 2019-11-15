@@ -64,13 +64,14 @@ for i in range( nSlice ) :
 
 # Output GCode
 gc = GCodeGenerator( rs, rx, ry, rz, rE, rcp.Fval, rcp.rho )
-
+gc.setMixingRatio( rcp.index )
+gc.initTool()
 #gc.SetGlideSpeed( 300, 300 )
 # Setup gliding time and eRatio for incoming and outgoing of an angle
 #gc.Gliding( 0.2, 0.0 , 0.2, 1.0, rs, rx, ry, rz, rE )
 
 gc.Generate()
-
+gc.EndingGCode()
 
 # setup cavas
 fig = plt.figure( figsize=(7.5,7.5) )

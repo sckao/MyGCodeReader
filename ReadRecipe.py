@@ -13,6 +13,7 @@ class ReadRecipe :
         self.fh = 0.0
         self.bs = 1.5
         self.rh = 5
+        self.index = 1.0
 
         self.recipename = fileName
 
@@ -93,7 +94,7 @@ class ReadRecipe :
     # Function to get basic 8 printing parameters
     def getPrintable(self):
 
-        paraNames = [ 'PrintSpeed', 'FlowRate', 'NLayer', 'BeadHeight', 'TipSpacing', 'FirstHeight', 'BeadSpacing', 'RetractHeight' ]
+        paraNames = [ 'PrintSpeed', 'FlowRate', 'NLayer', 'BeadHeight', 'TipSpacing', 'FirstHeight', 'BeadSpacing', 'RetractHeight', 'Index' ]
 
         for line in self.rlines :
 
@@ -141,6 +142,8 @@ class ReadRecipe :
                     self.bs = float(vals[0])
                 if iPar == 'RetractHeight' :
                     self.rh = float(vals[0])
+                if iPar == 'Index' :
+                    self.index = float(vals[0])
 
 
     def showPrintable(self):
@@ -155,3 +158,4 @@ class ReadRecipe :
         print(' 5 First Height =  %.3f' %(self.fh) )
         print(' 6 Bead Spacing =  %.3f' %(self.bs) )
         print(' 7 Retract Height =  %.3f' %(self.rh) )
+        print(' 8 Index =  %.3f' %(self.rh) )

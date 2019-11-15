@@ -6,7 +6,7 @@ from AreaFill import AreaFill
 from Polygram import Polygrams
 
 # Get basic 8 printing parameters
-rcp = ReadRecipe('formNext_rcp_Ring2.txt')
+rcp = ReadRecipe('formNext_rcp_Ring2a.txt')
 rcp.getPrintable()
 
 x= []
@@ -50,16 +50,20 @@ n_low = int ( rcp.getParameter('N_low') )
 # Height of the print
 nSlice = int(rcp.nLayer)
 yscale = rcp.getParameter('YScale')
+# Arc spacing - bead spacing between adjacent line
+arcspacing = rcp.getParameter('ArcSpacing')
 
-delta = ds*0.85
+
+# to set up initial y position
+delta = ds*1.1
 
 # Start constructing
 cl = AreaFill()
 cl.setPrintable(rcp.Fval, rcp.rho, rcp.bs )
-rl = ri - rcp.bs
-clV = cl.polygonFillCircle( xc, yc, rc, delta, n_up, n_low, ds, dL )
+rl = ri - (rcp.bs/2)
+#clV = cl.polygonFillCircle( xc, yc, rc, delta, n_up, n_low, ds, dL, arcspacing )
+clV = cl.polygonFillCircle( xc, yc, rc, delta, n_up, n_low, ds, dL, 2 )
 print(' dL = %.3f , ds = %.3f ' %(dL, ds))
-
 
 #dd = polychain.beadwidth*yspacing_scale*2
 #rr = math.sqrt( pow((x1 -xc),2) + pow((y1-yc),2) )
@@ -80,18 +84,23 @@ zz = z0
 for i in range( nSlice ) :
 
     # Circle
-    polyObj.Construct2D(zz, rs, rx, ry, rz, rE, True )
+    #polyObj.Construct2D(zz, rs, rx, ry, rz, rE, True )
     # Polygon Fill
     cl.getResult(clV, zz, rs, rx, ry, rz, rE, True)
     print( ' z = %.3f ' %( zz ))
+
+    #if nSlice == 3 :
+    #    dz = dz + 0.1
     zz = zz + dz
 
 gc = GCodeGenerator( rs, rx, ry, rz, rE, rcp.Fval, rcp.rho )
+gc.setMixingRatio( rcp.index )
+gc.initTool()
 gc.SetGlideSpeed( 300, 300 )
 # Setup gliding time and eRatio for incoming and outgoing of an angle
-gc.Gliding( 0.2, 0.0 , 0.2, 0.0, rs, rx, ry, rz, rE )
+gc.Gliding( 0.2, 0.1 , 0.2, 0.2, rs, rx, ry, rz, rE )
 gc.Generate()
-
+gc.EndingGCode()
 
 # setup cavas
 fig = plt.figure( figsize=(7.5,7.5) )
