@@ -162,6 +162,46 @@ class PolygonFill:
 
         return max_dy
 
+    # Create upper or lower part of the polygon chains
+    # ds < 0 is for the lower part
+    # scale is for scaling y position
+    # pos is the return arc position
+    # points outside boundary (iniB, endB) will not be added
+    def createArcNew(self, xc, yc, iniB, endB, ds, n, pos, scale = 1.):
+
+        theta = math.pi / (n+1)
+        r = abs(ds/2.)
+
+        # Only add the initial point if this is the starting point
+        #if len(pos) < 1 :
+        #    pos.append( [x0,y0] )
+
+        j = n
+        max_dy = 0
+        # This part only fill intermediate points
+        k = 1
+        for i in range(n) :
+
+            # upper part of arc
+            if ds > 0 :
+                j = n - i
+            # bottom part of arc
+            if ds < 0 :
+                j = -1*(i+1)
+            dx = r*math.cos( theta*j )
+            dy = r*math.sin( theta*j )*scale
+
+            if abs(dy) > max_dy :
+                max_dy = abs(dy)
+
+            x = xc + dx
+            y = yc + dy
+            #print('   (j=%d) , theta = %.3f, x=%.3f y= %.3f' %(j, theta*j, x, y))
+            if x < max(iniB,endB) and x > min(iniB,endB) :
+                pos.append( [x,y] )
+
+        return max_dy
+
 
     # k is number of bead (wallthickness, not height) for the polygon
     # x0,y0 :  starting position
@@ -358,6 +398,56 @@ class PolygonFill:
                 #print(' finished 2 - [%.3f , %.3f ]' %(x,y) )
 
             i = i+1
+
+    # iniP and endP are the boundary for the main line
+    # iniPs and endPs are the boundary for the arc points
+    # theX must be within iniP and endP
+    def createLineNew(self, arcV , theX, theY,  iniP, endP, iniPs, endPs, ds, dL, n, yScale = 1 ):
+
+        pathL = abs( endP - iniP )
+        # get the direction
+        pn = 1
+        if ds < 0 :
+            pn = -1
+
+        x = theX
+        y = theY
+        if x > min(iniP, endP) and x < max(iniP,endP) :
+            arcV.append( [x, y] )
+
+        dX  = 0
+        while dX < pathL :
+
+            #print('(%d) dX = %.3f ' %(i, dX))
+            # 1. Creating polygon - the middle points, not include the start and the end points
+            if ds < 0 and dX == 0 :
+              x = x + (dL*pn)
+              if x > min(iniP, endP) and x < max(iniP,endP) :
+                  arcV.append( [x,y] )
+
+            xc = x + (ds/2)
+            yc = y
+            self.createArcNew( xc, yc, iniPs, endPs, ds, n, arcV, yScale )
+
+            if dX + abs(ds) > pathL :
+                x = endP
+                arcV.append([x,y])
+                dX = pathL
+            else :
+                x = x + ds
+                arcV.append( [x,y] )
+                dX = dX + abs(ds)
+
+            # 2. Add connecting segment
+            if ( dX + dL ) < pathL :
+                x = x + (dL*pn)
+                arcV.append( [x,y] )
+                dX = dX + dL
+            else :
+                x = endP
+                arcV.append([x,y])
+                dX = pathL
+                #print(' finished 2 - [%.3f , %.3f ]' %(x,y) )
 
 
 

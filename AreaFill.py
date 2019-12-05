@@ -34,7 +34,7 @@ class AreaFill :
         pV = []
 
         i = 0
-        while y >= (yc - r ) :
+        while y >= (yc - r + self.bs ) :
 
             xr = math.sqrt( (r*r) - (yr*yr) )
             x1 = xc - xr*pow(-1,i)
@@ -44,6 +44,7 @@ class AreaFill :
             if i > 0 :
                 arcV = self.getPolygon( 3, pV[-1], [x1 ,y], xc, yc )
                 for it in arcV :
+                    it.append(0)
                     pV.append( it )
 
             pV.append( [ x1, y]  )
@@ -57,7 +58,7 @@ class AreaFill :
 
         return pV
 
-    def polygonFillCircle(self, xc, yc, r, delta, n, m, ds, dL   ):
+    def polygonFillCircle(self, xc, yc, r, delta, n, m, ds, dL, arcSpace = 1   ):
 
         poly = PolygonFill()
         w0, h0 = poly.unitSize( ds, dL, n, m )
@@ -74,7 +75,7 @@ class AreaFill :
 
         i = 0
         y = y0
-        dy = poly.beadwidth
+        dy = poly.beadwidth*arcSpace
         while y >= (yc - r + h0 ) :
 
             yr = abs(y - yc)
@@ -82,6 +83,14 @@ class AreaFill :
             # 1. Decide the boundary
             x1 = xc - xr*pow(-1,i)
             x2 = xc + xr*pow(-1,i)
+            # 1.1 adjust right end position
+            #if i%2 == 0 :
+                #x2 = x2 - (self.bs/2)
+            #    x2 = x2 + (0.45*self.bs)
+            #if i%2 == 1 :
+                #x1 = x1 - (self.bs/2)
+            #    x1 = x1 + (0.45*self.bs)
+
             # 2. Decide the starting point of each line
             if abs(x0 - x1) > ( dx + dL):
                 m = int((x1-x0)/dx)
@@ -100,10 +109,11 @@ class AreaFill :
             if i%2 == 1 and x0 > x1 :
                 x0 = x0 - dx
 
+            # 2.3 construct connecting arc
             if i%2 == 0 and i > 0 :
-                # construct connecting arc
                 arcV = self.getPolygon( 3, pV[-1], [x1 ,y], xc, yc )
                 for it in arcV :
+                    it.append(0)
                     pV.append( it )
 
 
@@ -121,9 +131,15 @@ class AreaFill :
 
             i = i+1
 
-        fArc = poly.createPolygon(50, pV[-1], pV[0], xc, yc )
-        for it in fArc :
-            pV.append( it )
+        # create final circle to round around
+        #rf = math.sqrt( (pV[0][0]-xc)*(pV[0][0]-xc)  + (pV[0][1]-yc)*(pV[0][1]-yc) )
+        #Af = math.acos((pV[0][0] - xc) / rf)
+        #xf = rf*math.cos(Af*1.04) + xc
+        #yf = rf*math.sin(Af*1.04) + yc
+        #fArc = poly.createPolygon(50, pV[-1], [xf,yf], xc, yc )
+        #fArc = poly.createPolygon(50, pV[-1], pV[0], xc, yc )
+        #for it in fArc :
+        #    pV.append( it )
 
         return pV
 
@@ -192,6 +208,9 @@ class AreaFill :
                 dy = pV[i][1] - pV[i - 1][1]
                 dt = math.sqrt((dx * dx) + (dy * dy)) / self.Fval
                 eval = self.Eval * dt
+                # a hack to set eval to 0 for intermediate point
+                if len(pV[i]) > 2 and pV[i][2] == 0 :
+                    eval = 0
 
                 rx.append( pV[i][0] )
                 ry.append( pV[i][1] )
@@ -209,57 +228,144 @@ class AreaFill :
             rE.append(retract_eval)
 
 
+    # Define a rectangle area from the printing outlines
+    def defineRange(self, pos ):
 
-    # FIXME : Not finished yet
-    def sortsegment(self, xV, yV, dY  ):
+        top  = [ pos[0][0], pos[0][1] ]
+        bott = [ pos[0][0], pos[0][1] ]
+        left = [ pos[0][0], pos[0][1] ]
+        right= [ pos[0][0], pos[0][1] ]
 
-        xc = sum(xV) / len(xV)
-        yc = sum(yV) / len(yV)
-        iniY = max( yV ) - self.bs
-        endY = min( yV ) + self.bs
+        for it in pos :
 
-        # separate right and left segments
-        LV = []
-        RV = []
-        for i in range( len(xV) ) :
+            if it[1] > top[1] :
+                top = [ it[0], it[1] ]
+            if it[1] < bott[1] :
+                bott = [ it[0], it[1] ]
+            if it[0] > left[0] :
+                right = [ it[0], it[1] ]
+            if it[0] < right[0] :
+                left = [ it[0], it[1] ]
 
-            if xV[i] < xc :
-                LV.append( [ xV[i], yV[i] ] )
+        return top,bott,left,right
+
+
+
+    # Find left and right boundary
+    # dY > 0 means upper arc , dY < 0 means lower arc
+    def findBoundary(self, theY, dY, minY, maxY, pos):
+
+       x1 = 0.
+       x2 = 0.
+       x1s = 0.
+       x2s = 0.
+       Y_s = theY + dY
+       if Y_s < minY or Y_s > maxY :
+           return x1,x2,x1s,x2s
+
+       for i in range( len(pos)-1 )  :
+
+           if theY < pos[i][1] and theY > pos[i+1][1] :
+               x1 = pos[i][0] - ((pos[i][0] - pos[i+1][0])*( pos[i][1] - theY )/( pos[i][1]-pos[i+1][1]) )
+           if theY > pos[i][1] and theY < pos[i+1][1] :
+               x2 = pos[i][0] - ((pos[i][0] - pos[i+1][0])*( pos[i][1] - theY )/( pos[i][1]-pos[i+1][1]) )
+
+           if Y_s < pos[i][1] and Y_s > pos[i+1][1] :
+               x1s = pos[i][0] - ((pos[i][0] - pos[i+1][0])*( pos[i][1] - Y_s )/( pos[i][1]-pos[i+1][1]) )
+           if Y_s > pos[i][1] and Y_s < pos[i+1][1] :
+               x2s = pos[i][0] - ((pos[i][0] - pos[i+1][0])*( pos[i][1] - Y_s )/( pos[i][1]-pos[i+1][1]) )
+
+           if x1 != 0. and x2 != 0 and x1s != 0 and x2s != 0 :
+               break
+
+       xL = min(x1,x2)
+       xR = max(x1,x2)
+       xLs = min(x1s,x2s)
+       xRs = max(x1s,x2s)
+       print( ' xL: %.2f, xR: %.2f, xLs: %.2f, xRs: %.2f ' %( xL, xR, xLs, xRs) )
+
+       return xL, xR, xLs, xRs
+
+    def startX(self, width, ranges, boundary, toLeft = False ):
+
+        x0 = min(ranges)
+        if toLeft :
+            x0 = max(ranges)
+
+        n = abs( ranges[1] - ranges[0] )/width
+        m = int(n)
+        print( ' n = %d , x0 = %.2f' %(m, x0))
+
+        for i in range(m) :
+
+            if toLeft :
+
+                if x0 > max(boundary) :
+                    x0 = x0 - width
+                    continue
+                else :
+                    x0 = x0 + width
+                    break
             else :
-                RV.append( [ xV[i], yV[i] ] )
 
-        y = iniY
-        dyP =   999999.
-        dyM = - 999999.
-        Lu = -1
-        Ld = -1
-        for i in range( len(LV) ) :
+                if x0 < min(boundary)  :
+                    x0 = x0 + width
+                    continue
+                else :
+                    x0 = x0 - width
+                    break
 
-            dy = LV[i][1] - y
-            if dy > 0 and dy < dyP :
-                dyP = LV[i][1] - y
-                Lu = i
-            if dy < 0 and dy > dyM :
-                dyM = LV[i][1] - y
-                Ld = i
+        print(' x0 = %.2f ' %(x0))
+        return x0
 
 
-        y = iniY
-        dyP =   999999.
-        dyM = - 999999.
-        Lu = -1
-        Ld = -1
-        for i in range( len(LV) ) :
 
-            dy = LV[i][1] - y
-            if dy > 0 and dy < dyP :
-                dyP = LV[i][1] - y
-                Lu = i
-            if dy < 0 and dy > dyM :
-                dyM = LV[i][1] - y
-                Ld = i
+    def FillArbitrary(self, pos, ds, dL, n, m):
+
+        poly = PolygonFill()
+        # determine the unit polygon size
+        w0, h0 = poly.unitSize(ds, dL, n, m)
+        h0 = h0
+        print('w: %.3f , h: %.3f' % (w0, h0))
+
+        # Find the top,bottom, left and right range
+        top,bott,left,right = self.defineRange(pos)
+        print( 'Range top: %.2f , bott: %.2f, left: %.2f , right: %.2f' %(top[1], bott[1], left[0], right[0]))
+        # Partition the rectangle space
+        nX = int( (right[0] - left[0]) / w0 ) + 1
+        nY = int( (top[1]   - bott[1]) / h0 ) + 1
+        print( 'NX: %d , NY: %d' %(nX, nY) )
+        # Re-define the range of partition space
+        deltaX = (nX*w0) - ( right[0] - left[0] )
+        xRange = [ left[0]-(deltaX/2) , right[0]+(deltaX/2) ]
+        deltaY = (nY*h0) - ( top[1] - bott[1] )
+        yRange = [ top[1] + (deltaY/2), bott[1] - (deltaY/2) ]
+        print( 'Range top: %.2f , bott: %.2f, left: %.2f , right: %.2f' %(yRange[0], yRange[1], xRange[0], xRange[1]))
+        # setup starting Y and X position (x0,y0)
+        y0 = yRange[0] - (h0)
+
+        dy = h0/2
+        y = y0
+        arcV = []
+        i=0
+        while y > bott[1] :
+
+            print( '(%d) Y = %.3f ' %( i, y ) )
+            xL,xR,xLs,xRs = self.findBoundary( y, dy*pow(-1,i), bott[1], top[1], pos )
+
+            if i%2 == 0:
+                x = self.startX( w0, xRange, [xL,xR] )
+                poly.createLineNew( arcV, x, y, xL, xR, xLs, xRs, ds*pow(-1,i), dL, n, 1 )
+                y = y - poly.beadwidth
+            else:
+                x = self.startX( w0, xRange, [xL,xR], True )
+                poly.createLineNew( arcV, x, y, xR, xL, xRs, xLs, ds*pow(-1,i), dL, n, 1 )
+                y = y - h0 - poly.beadwidth
+
+            i = i+1
 
 
+        return arcV
 
 
 
