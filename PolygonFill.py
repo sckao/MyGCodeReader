@@ -414,17 +414,26 @@ class PolygonFill:
         y = theY
         if x > min(iniP, endP) and x < max(iniP,endP) :
             arcV.append( [x, y] )
+        else :
+            # x value can NOT be changed in this case, otherwise the grid will off-phase
+            if ds > 0 :
+                arcV.append( [ min(iniP, endP), y] )
+            if ds < 0 :
+                arcV.append( [ max(iniP, endP), y] )
+
 
         dX  = 0
         while dX < pathL :
 
             #print('(%d) dX = %.3f ' %(i, dX))
-            # 1. Creating polygon - the middle points, not include the start and the end points
+            # 0. For reversed direction, dL first then ds
             if ds < 0 and dX == 0 :
               x = x + (dL*pn)
               if x > min(iniP, endP) and x < max(iniP,endP) :
                   arcV.append( [x,y] )
+                  dX = abs(x - iniP)
 
+            # 1. Creating polygon - the middle points, not include the start and the end points
             xc = x + (ds/2)
             yc = y
             self.createArcNew( xc, yc, iniPs, endPs, ds, n, arcV, yScale )
@@ -436,13 +445,15 @@ class PolygonFill:
             else :
                 x = x + ds
                 arcV.append( [x,y] )
-                dX = dX + abs(ds)
+                dX = abs(x - iniP)
+                print( ' x = %.2f , dX = %.2f / %.2f' %(x, dX, pathL) )
 
             # 2. Add connecting segment
             if ( dX + dL ) < pathL :
                 x = x + (dL*pn)
                 arcV.append( [x,y] )
-                dX = dX + dL
+                dX = abs(x - iniP)
+                print( ' x = %.2f , dX = %.2f / %.2f' %(x, dX, pathL) )
             else :
                 x = endP
                 arcV.append([x,y])
