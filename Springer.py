@@ -69,6 +69,9 @@ zz = z0
 
 cl.getResult(shapeV, zz, rs, rx, ry, rz, rE, True)
 
+for i in range(len(rs)) :
+    rs[i]  = 2
+
 for i in range( nSlice ) :
 
     # Circle

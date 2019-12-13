@@ -1,5 +1,31 @@
 import math
+import numpy as np
 from ReadRecipe import ReadRecipe
+
+# Solve slope (m) and intercept(d) given two points (x1, y1) , (x2, y2)
+#    y = mx + d
+#  |y1| = | x1  1 | | m |
+#  |y2|   | x2  1 | | d |
+#   a = np.array([x1, 1] , [x2,1])   b = [y1, y2] , c = [m,d]
+def SolveLine( x1, y1, x2, y2 ) :
+    a = np.array( [[ x1, 1.] , [ x2, 1.]]  )
+    b = np.array( [y1, y2 ]  )
+    c = np.linalg.solve(a,b)
+    m = c[0]
+    d = c[1]
+
+    return m,d
+
+# Solve two line ( y = mx + d )
+# return intersection point x,y
+def Intersection( m1, d1, m2, d2 ) :
+    a = np.array( [[m1, -1.], [m2, -1.]] )
+    b = np.array( [ -1*d1, -1*d2 ] )
+    c = np.linalg.solve(a, b)
+    x = c[0]
+    y = c[1]
+    return x,y
+    # print( '(%d,%d) = [ %.3f, %.3f ]' %( i, j, c[0], c[1]) )
 
 class PolygonFill:
 
@@ -172,14 +198,11 @@ class PolygonFill:
         theta = math.pi / (n+1)
         r = abs(ds/2.)
 
-        # Only add the initial point if this is the starting point
-        #if len(pos) < 1 :
-        #    pos.append( [x0,y0] )
-
         j = n
         max_dy = 0
         # This part only fill intermediate points
         k = 1
+
         for i in range(n) :
 
             # upper part of arc
@@ -199,6 +222,24 @@ class PolygonFill:
             #print('   (j=%d) , theta = %.3f, x=%.3f y= %.3f' %(j, theta*j, x, y))
             if x < max(iniB,endB) and x > min(iniB,endB) :
                 pos.append( [x,y] )
+                #print( ' x = %.2f ' %(x) )
+
+            '''    
+            if x < min(iniB,endB) and i < n-1 :
+                x = min(iniB,endB)
+                if len(pos) < 1 :
+                    pos.append( [x,y] )
+                    print( ' x = %.2f @ %d) ' %(x,i) )
+                elif pos[-1][0] != x or pos[-1][1] != y :
+                    pos.append( [x,y] )
+                    print( ' x = %.2f @ %d) ' %(x,i) )
+            if x > max(iniB,endB) and i < n-1 :
+                x = max(iniB,endB)
+                if pos[-1][0] != x or pos[-1][1] != y :
+                    pos.append( [x,y] )
+                    print( ' x = %.2f @ %d) ' %(x,i) )
+            '''
+
 
         return max_dy
 
@@ -401,7 +442,7 @@ class PolygonFill:
 
     # iniP and endP are the boundary for the main line
     # iniPs and endPs are the boundary for the arc points
-    # theX must be within iniP and endP
+    # theX is the starting position from the partition
     def createLineNew(self, arcV , theX, theY,  iniP, endP, iniPs, endPs, ds, dL, n, yScale = 1 ):
 
         pathL = abs( endP - iniP )
@@ -410,19 +451,11 @@ class PolygonFill:
         if ds < 0 :
             pn = -1
 
+        # Add the 1st/starting point
         x = theX
         y = theY
-        if x > min(iniP, endP) and x < max(iniP,endP) :
-            arcV.append( [x, y] )
-        else :
-            # x value can NOT be changed in this case, otherwise the grid will off-phase
-            if ds > 0 :
-                arcV.append( [ min(iniP, endP), y] )
-            if ds < 0 :
-                arcV.append( [ max(iniP, endP), y] )
 
-
-        dX  = 0
+        dX = 0
         while dX < pathL :
 
             #print('(%d) dX = %.3f ' %(i, dX))
@@ -444,16 +477,24 @@ class PolygonFill:
                 dX = pathL
             else :
                 x = x + ds
-                arcV.append( [x,y] )
+                if x > min(iniP, endP) and x < max(iniP,endP) :
+                    arcV.append( [x, y] )
+                else :
+                    # x value can NOT be changed in this case, otherwise the grid will off-phase
+                    if ds > 0 :
+                        arcV.append( [ min(iniP, endP), y] )
+                    if ds < 0 :
+                        arcV.append( [ max(iniP, endP), y] )
+
                 dX = abs(x - iniP)
-                print( ' x = %.2f , dX = %.2f / %.2f' %(x, dX, pathL) )
+                print( ' x1 = %.2f , dX = %.2f / %.2f' %(x, dX, pathL) )
 
             # 2. Add connecting segment
             if ( dX + dL ) < pathL :
                 x = x + (dL*pn)
                 arcV.append( [x,y] )
                 dX = abs(x - iniP)
-                print( ' x = %.2f , dX = %.2f / %.2f' %(x, dX, pathL) )
+                print( ' x2 = %.2f , dX = %.2f / %.2f' %(x, dX, pathL) )
             else :
                 x = endP
                 arcV.append([x,y])
@@ -461,7 +502,135 @@ class PolygonFill:
                 #print(' finished 2 - [%.3f , %.3f ]' %(x,y) )
 
 
+    # pRange is the X range of the partition
+    # lBound is the left side of the boundary
+    # rBound is the right side of the boundary
+    #def createLineNew1(self, arcV , theY, pRange, lBound, rBound, ds, dL, n, yScale = 1 ):
+    def createLineNew1(self, arcV , theY, pRange, ds, dL, n, yScale = 1 ):
 
+        pn = 1
+        if ds < 0 :
+            pn = -1
+
+        # partition X range
+        iniX = pRange[0]
+        endX = pRange[1]
+        if pn < 0 :
+            iniX = pRange[1]
+            endX = pRange[0]
+
+        pathL = abs( endX - iniX )
+        # get the direction
+        # buffer line result - will be checked with boundaries
+        lineV = []
+        # Add the 1st/starting point
+        x = iniX
+        y = theY
+        lineV.append( [x,y] )
+
+        dX = 0
+        dY = 0
+        # Layout grid through the whole partition space
+        while dX < pathL :
+
+            #print('(%d) dX = %.3f ' %(i, dX))
+            # 0. For reversed direction, dL first then ds
+            if ds < 0 and dX == 0 :
+                x = x + (dL*pn)
+                lineV.append( [x,y] )
+                dX = abs(x - iniX)
+
+            # 1. Creating polygon - the middle points, not include the start and the end points
+            xc = x + (ds/2)
+            yc = y
+            dY = self.createArcNew( xc, yc, iniX, endX, ds, n, lineV, yScale )
+
+            if dX + abs(ds) > pathL :
+                x = endX
+                lineV.append([x,y])
+                dX = pathL
+            else :
+                x = x + ds
+                lineV.append( [x, y] )
+                dX = abs(x - iniX)
+                print( ' x1 = %.2f , dX = %.2f / %.2f' %(x, dX, pathL) )
+
+            # 2. Add connecting segment
+            if ( dX + dL ) < pathL :
+                x = x + (dL*pn)
+                lineV.append( [x,y] )
+                dX = abs(x - iniX)
+                print( ' x2 = %.2f , dX = %.2f / %.2f' %(x, dX, pathL) )
+            else :
+                x = endX
+                lineV.append([x,y])
+                dX = pathL
+                #print(' finished 2 - [%.3f , %.3f ]' %(x,y) )
+
+        dY = dY*pn
+        # review points and strips those out of boundary
+        nPnt = len(lineV)
+        print(' N Point = %d , dY = %.2f' %(nPnt, dY) )
+        for i in range( nPnt ) :
+            arcV.append( lineV[i] )
+
+        '''
+        for i in range( nPnt ) :
+
+            # for the left side
+            if lineV[i][0] < lBound[0] and i < (nPnt-1) :
+                j = i + (pn*1)
+                # find the cross point
+                if lineV[j][0] > lBound[0] :
+                    print(' L cross @ i(%d) -> j(%d)' %(i,j))
+                    m1, d1 = SolveLine( lineV[i][0], lineV[i][1], lineV[j][0], lineV[j][1] )
+                    m2, d2 = SolveLine( lBound[0], theY, lBound[1], theY + dY )
+                    xi, yi = Intersection( m1, d1, m2, d2 )
+                    print( 'L1 %.2f,%.2f -  %.2f,%.2f' %( lineV[i][0], lineV[i][1], lineV[j][0], lineV[j][1] ))
+                    print( 'L2 %.2f,%.2f -  %.2f,%.2f' %( lBound[0], theY, lBound[1], theY + dY ))
+                    print( 'Sol : %.2f,%.2f ' %(xi,yi))
+                    if xi < min( lineV[i][0], lineV[j][0] ) or xi > max( lineV[i][0], lineV[j][0] ) :
+                        print('bad X solution : %.2f - %.2f - %.2f ' %(lineV[i][0], xi, lineV[j][0] ) )
+                        #xi = (lineV[i][0] + lineV[j][0]) / 2
+                        xi = (lBound[0] + lBound[1]) / 2
+                        yi = theY + (dY/2)
+                    if yi < min( theY, theY + dY ) or yi > max( theY, theY + dY ) :
+                        print('bad Y solution : %.2f - %.2f - %.2f ' %(lineV[i][1], yi, lineV[j][1] ) )
+                        #yi = (lineV[i][1] + lineV[j][1]) / 2
+                        xi = (lBound[0] + lBound[1]) / 2
+                        yi = theY + (dY/2)
+
+                    arcV.append( [xi,yi] )
+
+            if lineV[i][0] > lBound[0] and lineV[i][0] < rBound[0] :
+
+                arcV.append( lineV[i] )
+
+            # for the right side
+            if lineV[i][0] > rBound[0] and i > 0 :
+                j = i - (pn*1)
+                # find the cross point
+                if lineV[j][0] < rBound[0] :
+                    print(' R cross @ i(%d) -> j(%d)' %(i,j))
+                    m1, d1 = SolveLine( lineV[i][0], lineV[i][1], lineV[j][0], lineV[j][1] )
+                    m2, d2 = SolveLine( rBound[0], theY, rBound[1], theY + dY )
+                    xi, yi = Intersection( m1, d1, m2, d2 )
+                    print( 'L1 %.2f,%.2f -  %.2f,%.2f' %( lineV[i][0], lineV[i][1], lineV[j][0], lineV[j][1] ))
+                    print( 'L2 %.2f,%.2f -  %.2f,%.2f' %( lBound[0], theY, lBound[1], theY + dY ))
+                    print( 'Sol : %.2f,%.2f ' %(xi,yi))
+                    if xi < min( lineV[i][0], lineV[j][0] ) or xi > max( lineV[i][0], lineV[j][0] ) :
+                        print('bad X solution : %.2f - %.2f - %.2f ' %(lineV[i][0], xi, lineV[j][0] ) )
+                        #xi = (lineV[i][0] + lineV[j][0]) / 2
+                        xi = (rBound[0] + rBound[1]) / 2
+                        yi = theY + (dY/2)
+                    if yi < min( theY, theY + dY ) or yi > max( theY, theY + dY ) :
+                        print('bad Y solution : %.2f - %.2f - %.2f ' %(lineV[i][1], yi, lineV[j][1] ) )
+                        #yi = (lineV[i][1] + lineV[j][1]) / 2
+                        xi = (rBound[0] + rBound[1]) / 2
+                        yi = theY + (dY/2)
+
+                    arcV.append( [xi,yi] )
+        '''
 
     # Input starting x,y positions and length (L)
     def FillAreaN(self, xV, yV, LV, ds, dL, n, m, k = 1, z = 0, scale = 1. ):

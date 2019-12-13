@@ -1,5 +1,7 @@
 import math
 from PolygonFill import PolygonFill
+from PolygonFill import SolveLine
+from PolygonFill import Intersection
 
 class AreaFill :
 
@@ -286,6 +288,135 @@ class AreaFill :
 
        return xL, xR, xLs, xRs
 
+    # Find left and right boundary and their corresponding segments
+    def findXBoundary(self, theY, pos):
+
+        x1 = 0.
+        x2 = 0.
+
+        b1 = []
+        b2 = []
+
+        for i in range( len(pos)-1 )  :
+
+            if theY < pos[i][1] and theY > pos[i+1][1] :
+                x1 = pos[i][0] - ((pos[i][0] - pos[i+1][0])*( pos[i][1] - theY )/( pos[i][1]-pos[i+1][1]) )
+                b1 = [ x1, i, i+1 ]
+            if theY > pos[i][1] and theY < pos[i+1][1] :
+                x2 = pos[i][0] - ((pos[i][0] - pos[i+1][0])*( pos[i][1] - theY )/( pos[i][1]-pos[i+1][1]) )
+                b2 = [ x2, i+1, i ]
+
+            if x1 != 0. and x2 != 0 :
+                break
+
+        print( ' X Boundary => x1: %.2f, x2: %.2f ' %( x1, x2) )
+
+        if x1 < x2 :
+            return b1,b2
+        if x1 > x2 :
+            return b2,b1
+        else :
+            b1 = [0,-1,-1]
+            b2 = [0,-1,-1]
+            return b1, b2
+
+
+    # find intersection point from segment1 (s1,s2) and segment2(p1,p2)
+    # s and p are (x,y) point
+    def findIntersection(self, s1, s2, p1, p2):
+
+        m1, d1 = SolveLine( s1[0], s1[1], s2[0], s2[1] )
+        m2, d2 = SolveLine( p1[0], p1[1], p2[0], p2[1] )
+        xi, yi = Intersection(m1, d1, m2, d2)
+        print( 'L1 %.2f,%.2f -  %.2f,%.2f' % ( s1[0], s1[1], s2[0], s2[1]) )
+        print( 'L2 %.2f,%.2f -  %.2f,%.2f' % ( p1[0], p1[1], p2[0], p2[1]) )
+        print( 'Sol : %.2f,%.2f ' % (xi, yi) )
+
+        isInter = True
+        if xi < min(s1[0], s2[0]) or xi > max(s1[0],s2[0] ) :
+            isInter = False
+        if xi < min(p1[0], p2[0]) or xi > max(p1[0],p2[0] ) :
+            isInter = False
+        if yi < min(s1[1], s2[1]) or yi > max(s1[1],s2[1] ) :
+            isInter = False
+        if yi < min(p1[1], p2[1]) or yi > max(p1[1],p2[1] ) :
+            isInter = False
+
+        return xi, yi, isInter
+
+
+    # lineV is the grid chain vector
+    # posV is shape outline vector
+    def findBoundaryNew(self, lineV, posV, fillV ):
+
+        xi = 0
+        yi = 0
+        isInter = False
+        for i in range( len(lineV) -1) :
+
+            b1, b2 = self.findXBoundary( lineV[i][1], posV )
+            b3, b4 = self.findXBoundary( lineV[i+1][1], posV )
+            print(' Line X(%.1f) , boundary( %.1f ~ %.1f) ' %( lineV[i][0], b1[0], b2[0] ) )
+            if b1[0] == 0  or b2[0] == 0 :
+                print(' Line Fail !!! ')
+                continue ;
+            if b3[0] == 0  or b4[0] == 0 :
+                print(' Line Fail !!! ')
+                continue ;
+
+            if lineV[i][0] > b1[0] and lineV[i][0] < b2[0] :
+                fillV.append( lineV[i] )
+                print(' Accepted (%.1f, %.1f)' %( lineV[i][0], lineV[i][1]))
+
+            if lineV[i][0] < b1[0] and lineV[i+1][0] > b3[0] :
+                j = b3[1]
+                k = b3[2]
+                xi,yi, isInter = self.findIntersection( lineV[i], lineV[i+1], posV[j], posV[k] )
+                if isInter is False :
+                    j = b1[1]
+                    k = b1[2]
+                    xi,yi, isInter = self.findIntersection( lineV[i], lineV[i+1], posV[j], posV[k] )
+
+                fillV.append( [xi,yi] )
+                print(' Found Boundary1 (%.1f, %.1f)' %(xi,yi))
+
+            if lineV[i][0] < b2[0] and lineV[i+1][0] > b4[0] :
+                j = b4[1]
+                k = b4[2]
+                xi,yi, isInter = self.findIntersection( lineV[i], lineV[i+1], posV[j], posV[k] )
+                if isInter is False :
+                    j = b2[1]
+                    k = b2[2]
+                    xi,yi, isInter = self.findIntersection( lineV[i], lineV[i+1], posV[j], posV[k] )
+                fillV.append( [xi,yi] )
+                print(' Found Boundary2 (%.1f, %.1f)' %(xi,yi))
+
+            if lineV[i][0] > b1[0] and lineV[i+1][0] < b3[0] :
+                j = b1[1]
+                k = b1[2]
+                xi,yi, isInter = self.findIntersection( lineV[i], lineV[i+1], posV[j], posV[k] )
+                if isInter is False :
+                    j = b3[1]
+                    k = b3[2]
+                    xi,yi, isInter = self.findIntersection( lineV[i], lineV[i+1], posV[j], posV[k] )
+                fillV.append( [xi,yi] )
+                print(' Found Boundary3 (%.1f, %.1f)' %(xi,yi))
+
+            if lineV[i][0] > b2[0] and lineV[i+1][0] < b4[0] :
+                j = b2[1]
+                k = b2[2]
+                xi,yi, isInter = self.findIntersection( lineV[i], lineV[i+1], posV[j], posV[k] )
+                if isInter is False :
+                    j = b4[1]
+                    k = b4[2]
+                    xi,yi, isInter = self.findIntersection( lineV[i], lineV[i+1], posV[j], posV[k] )
+                fillV.append( [xi,yi] )
+                print(' Found Boundary4 (%.1f, %.1f)' %(xi,yi))
+
+
+    # ranges : the partition range
+    # boundary : the boundary of the shape
+    # find the starting x0 which corresponding to the starting partition
     def startX(self, width, ranges, boundary, toLeft = False ):
 
         x0 = min(ranges)
@@ -335,12 +466,14 @@ class AreaFill :
         nX = int( (right[0] - left[0]) / w0 ) + 1
         nY = int( (top[1]   - bott[1]) / h0 ) + 1
         print( 'NX: %d , NY: %d' %(nX, nY) )
+
         # Re-define the range of partition space
         deltaX = (nX*w0) - ( right[0] - left[0] )
         xRange = [ left[0]-(deltaX/2) , right[0]+(deltaX/2) ]
         deltaY = (nY*h0) - ( top[1] - bott[1] )
         yRange = [ top[1] + (deltaY/2), bott[1] - (deltaY/2) ]
         print( 'Range top: %.2f , bott: %.2f, left: %.2f , right: %.2f' %(yRange[0], yRange[1], xRange[0], xRange[1]))
+
         # setup starting Y and X position (x0,y0)
         y0 = yRange[0] - (h0)
 
@@ -351,16 +484,21 @@ class AreaFill :
         while y > bott[1] :
 
             print( '(%d) Y = %.3f ' %( i, y ) )
-            xL,xR,xLs,xRs = self.findBoundary( y, dy*pow(-1,i), bott[1], top[1], pos )
+            lineV = []
+            #xL,xR,xLs,xRs = self.findBoundary( y, dy*pow(-1,i), bott[1], top[1], pos )
+            #xL,xR,xLs,xRs = self.findBoundary( y, dy*pow(-1,i), yRange[1], yRange[0], pos )
 
             if i%2 == 0:
-                x = self.startX( w0, xRange, [xL,xR] )
-                poly.createLineNew( arcV, x, y, xL, xR, xLs, xRs, ds*pow(-1,i), dL, n, 1 )
-                y = y - poly.beadwidth
+                #x = self.startX( w0, xRange, [xL,xR] )
+                #poly.createLineNew( arcV, x, y, xL, xR, xLs, xRs, ds*pow(-1,i), dL, n, 1 )
+                poly.createLineNew1( lineV, y, xRange, ds*pow(-1,i), dL, n, 1 )
+                self.findBoundaryNew( lineV, pos, arcV )
+                y = y - 3*poly.beadwidth
             else:
-                x = self.startX( w0, xRange, [xL,xR], True )
-                poly.createLineNew( arcV, x, y, xR, xL, xRs, xLs, ds*pow(-1,i), dL, n, 1 )
-                y = y - h0 - poly.beadwidth
+                #x = self.startX( w0, xRange, [xL,xR], True )
+                poly.createLineNew1( lineV, y, xRange, ds*pow(-1,i), dL, n, 1 )
+                self.findBoundaryNew( lineV, pos, arcV )
+                y = y - h0 - 3*poly.beadwidth
 
             i = i+1
 
