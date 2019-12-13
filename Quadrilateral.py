@@ -248,7 +248,7 @@ class Rectangle :
 
             # Calculate Eval
             prime_eval = 0.
-            retract_eval = -0.5
+            retract_eval = -1.0
             shift_eval = 0
             if i == 0 :
 
@@ -332,8 +332,8 @@ class Rectangle :
         dY0   = 15
 
         i = 0
-        #z = self.ts + self.bh + self.fh + 6.25
-        z = self.ts + self.bh + self.fh
+        z = self.ts + self.bh + self.fh + 6.25
+        #z = self.ts + self.bh + self.fh
         self.Setup(127,54,0,1, theX0, theY0 )
         self.AddSkirt( 5, 1 )
         self.GetResult( z, rx, ry, rz, rE, rS )
@@ -368,6 +368,49 @@ class Rectangle :
 
             z = z + self.bh
 
+    def ConstructBMWTest(self, rx =[], ry= [], rz = [] , rE = [], rS = [] ):
+
+        h = self.height
+        theX0 = 75
+        theY0 = 87
+        dY0   = 15
+
+        i = 0
+        z = self.ts + self.bh + self.fh + 6.25
+        #z = self.ts + self.bh + self.fh
+        self.Setup( 67,54,0,1, theX0, theY0 )
+        self.AddSkirt( 5, 1 )
+        self.GetResult( z, rx, ry, rz, rE, rS )
+        self.u = []
+        self.v = []
+
+        for i in range( self.nLayer ) :
+
+            theY0 = 87
+            for j in range(2) :
+
+                self.Setup( 67,9,0,1, theX0, theY0 )
+                self.AddShell( 1 )
+                self.GetResult( z, rx, ry, rz, rE, rS )
+                self.u = []
+                self.v = []
+                print(' Layer %d = %.3f ' %(i,z ))
+                if i%2 == 0 :
+                    self.XZigzagFill( 1 )
+                    self.GetResult( z, rx, ry, rz, rE, rS )
+                    #
+                    Ending( 7, rS,rx, ry, rz, rE )
+                    self.u = []
+                    self.v = []
+                else :
+                    self.YZigzagFill( 1 )
+                    self.GetResult( z, rx, ry, rz, rE, rS )
+                    self.u = []
+                    self.v = []
+
+                theY0 = theY0 + dY0
+
+            z = z + self.bh
     def Configure(self):
 
         self.length = input('Length (150 mm): ')
