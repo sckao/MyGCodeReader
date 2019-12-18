@@ -5,14 +5,18 @@ import math
 
 class GetQuiverObject:
 
+    # mouse x,y position
     mx = 0.
+    # object x,y,z,E position
     my = 0.
     objX = 0.
     objY = 0.
     objZ = 0.
     objE = 0.
     dr = 999999999.
+    # index of object in the list
     idx = -1
+    # gcode file I/O
     IO = None
 
     key_val = ''
@@ -72,6 +76,7 @@ class GetQuiverObject:
             self.objMatch(mx, my)
             self.viewbounds = self.ax.viewLim.bounds
             #print( ' - View Limit Bound : ', self.viewbounds  )
+
         elif self.key_val == '' and event.button == 3 :
             print(' Read Only Mode ')
             mx = event.xdata
@@ -80,6 +85,7 @@ class GetQuiverObject:
             self.objMatch(mx, my)
             self.viewbounds = self.ax.viewLim.bounds
             #print( ' - View Limit Bound : ', self.viewbounds  )
+
         else :
             pass
 
@@ -94,8 +100,8 @@ class GetQuiverObject:
                     + ' in list {:.3f}'.format( self.objV[self.idx][0] ) + '. {:.3f}'.format( self.objV[self.idx][1] ) )
 
             # Update position to current mouse position
-            self.IO.write( '; %d, %.3f, %.3f, %.3f, %.4f,  %.3f, %.3f \n'
-                           %(self.idx, self.objV[self.idx][0], self.objV[self.idx][1],  self.objV[self.idx][2], self.objV[self.idx][3],mx, my))
+            #self.IO.write( '; %d, %.3f, %.3f, %.3f, %.4f,  %.3f, %.3f \n'
+            #               %(self.idx, self.objV[self.idx][0], self.objV[self.idx][1],  self.objV[self.idx][2], self.objV[self.idx][3],mx, my))
             self.objV[self.idx][0] = mx
             self.objV[self.idx][1] = my
             print('>{:3d}'.format(self.idx) + ') new points:{:.3f}'.format(self.objV[self.idx][0] ) + ', {:.3f}'.format(self.objV[self.idx][1])  )
@@ -129,6 +135,7 @@ class GetQuiverObject:
             plt.grid(b=True, which='major')
             SetQuiver( self.ax, self.objV, self.objV[0][0], self.objV[0][1] )
             self.ax.figure.canvas.draw()
+            # set the point back to its original position
             self.objV[self.idx][0] = self.objX
             self.objV[self.idx][1] = self.objY
 
@@ -216,6 +223,7 @@ def SetQuiver( ax, gV,  X0 = 0. , Y0 = 0. ) :
 
 
 # gV contains the positions of every X-Y movement, color code and moveType
+# Draw the path in this particular layer
 def ShowPath( gV, gfile, xlimL = -5, xlimR = 355, ylimB = -5, ylimT = 305 ):
 
     # setup cavas

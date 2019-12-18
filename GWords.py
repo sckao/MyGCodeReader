@@ -1,3 +1,4 @@
+import math
 
 class GWords :
 
@@ -6,6 +7,7 @@ class GWords :
     zVal = 0
     eVal = 0
     fVal = 0
+    rho  = 0
     moveType = 0
     gWords = []
     isG0G1 = False
@@ -24,8 +26,8 @@ class GWords :
         self.update = [0,0,0,0,0]
         self.eVal = 0.
 
-    # update positions
-    def getPos(self, sx =0, sy =0, sz =0, sE = 1. ):
+    # update positions and rho
+    def getPos(self, sx =0, sy =0, sz =0, sE = 1., sF = 1. ):
 
         if len( self.gWords ) < 1:
             print("No Entry")
@@ -34,22 +36,30 @@ class GWords :
 
             self.isG0G1 = True
 
+            dr = [0,0]
             for ig in self.gWords :
+                print( ' ig = '+ ig )
                 if ig[0] == 'X':
-                    if float(ig[1:]) != self.xVal :
-                        self.xVal = float(ig[1:]) + sx
+                    iVal = float( ig[1:] )
+                    if iVal != self.xVal :
+                        dr[0] = iVal - self.xVal
+                        self.xVal = iVal + sx
                         self.update[0] = 1
                 if ig[0] == 'Y':
-                    if float(ig[1:]) != self.yVal :
-                        self.yVal = float(ig[1:]) + sy
+                    iVal = float( ig[1:] )
+                    if iVal != self.yVal :
+                        dr[1] = iVal - self.yVal
+                        self.yVal = iVal + sy
                         self.update[1] = 1
                 if ig[0] == 'Z':
-                    if float(ig[1:]) != self.zVal :
-                        self.zVal = float(ig[1:]) + sz
+                    iVal = float( ig[1:] )
+                    if iVal != self.zVal :
+                        self.zVal = iVal + sz
                         self.update[2] = 1
                 if ig[0] == 'E':
-                    if float(ig[1:]) != self.eVal :
-                        self.eVal = float(ig[1:])*sE
+                    iVal = float( ig[1:] )
+                    if iVal != self.eVal :
+                        self.eVal = iVal*sE
                         self.update[3] = 1
 
                     if float(self.eVal) <= 0. :
@@ -58,8 +68,14 @@ class GWords :
                         self.retract = False
 
                 if ig[0] == 'F':
-                    self.fVal = float(ig[1:]) / 60.
+                    iVal = float( ig[1:] )
+                    self.fVal = iVal*sF / 60.
                     self.update[4] = 1
+            drMag = math.sqrt( (dr[0]*dr[0]) + (dr[1]*dr[1]) )
+            if drMag > 0 :
+                self.rho = self.eVal / drMag
+            else :
+                self.rho = 0.
 
             # Move Type is only defined by  first 3 bits (x,y,z)
             # if only x,y move , it will be 011 , which is 3
@@ -88,7 +104,7 @@ class GWords :
     def posUpdated(self):
 
         move = False
-        if sum( self.update[:3]) > 0 :
+        if sum( self.update[:4]) > 0 :
             move = True
 
         return move
