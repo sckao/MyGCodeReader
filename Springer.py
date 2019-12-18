@@ -1,9 +1,9 @@
 import matplotlib.pyplot as plt
-import math
+#import math
 from GCodeGenerator import GCodeGenerator
 from ReadRecipe import ReadRecipe
 from AreaFill import AreaFill
-from Polygram import Polygrams
+#from Polygram import Polygrams
 from Ellipse import Ellipse
 
 # Get basic 8 printing parameters
@@ -22,9 +22,12 @@ rE = []
 
 # 1. Makeup a shape for test
 
+#                   a   b   x0 y0
 ellipse = Ellipse( 25, 50, 80, 80 )
 shapeV = ellipse.getEllipse()
 
+ellipse = Ellipse( 27, 54, 80, 80 )
+skirtV = ellipse.getEllipse()
 
 # 2. Basics for the Grids
 
@@ -67,7 +70,7 @@ zz = z0
 # Add skirt of the circle
 #polyObj.AddSkirt(rs, rx, ry, rz, rE )
 
-cl.getResult(shapeV, zz, rs, rx, ry, rz, rE, True)
+cl.getResult(skirtV, zz, rs, rx, ry, rz, rE, True)
 
 for i in range(len(rs)) :
     rs[i]  = 2
