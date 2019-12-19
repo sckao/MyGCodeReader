@@ -503,9 +503,6 @@ class PolygonFill:
 
 
     # pRange is the X range of the partition
-    # lBound is the left side of the boundary
-    # rBound is the right side of the boundary
-    #def createLineNew1(self, arcV , theY, pRange, lBound, rBound, ds, dL, n, yScale = 1 ):
     def createLineNew1(self, arcV , theY, pRange, ds, dL, n, yScale = 1 ):
 
         pn = 1

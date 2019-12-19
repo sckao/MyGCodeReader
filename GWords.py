@@ -38,7 +38,7 @@ class GWords :
 
             dr = [0,0]
             for ig in self.gWords :
-                print( ' ig = '+ ig )
+                #print( ' ig = '+ ig )
                 if ig[0] == 'X':
                     iVal = float( ig[1:] )
                     if iVal != self.xVal :

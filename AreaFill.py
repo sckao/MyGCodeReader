@@ -222,9 +222,9 @@ class AreaFill :
 
             i = i + 1
 
-        if retract:
-            rx.append( pV[i - 1][0] )
-            ry.append( pV[i - 1][1] )
+        if retract and len(pV) > 0 :
+            rx.append( pV[ -1][0] )
+            ry.append( pV[ -1][1] )
             rz.append(zVal + self.rd)
             rs.append(2)
             rE.append(retract_eval)
@@ -244,9 +244,9 @@ class AreaFill :
                 top = [ it[0], it[1] ]
             if it[1] < bott[1] :
                 bott = [ it[0], it[1] ]
-            if it[0] > left[0] :
+            if it[0] > right[0] :
                 right = [ it[0], it[1] ]
-            if it[0] < right[0] :
+            if it[0] < left[0] :
                 left = [ it[0], it[1] ]
 
         return top,bott,left,right
@@ -450,7 +450,7 @@ class AreaFill :
         return x0
 
 
-
+    # pos is the outline shape
     def FillArbitrary(self, pos, ds, dL, n, m):
 
         poly = PolygonFill()
@@ -458,6 +458,9 @@ class AreaFill :
         w0, h0 = poly.unitSize(ds, dL, n, m)
         h0 = h0
         print('w: %.3f , h: %.3f' % (w0, h0))
+
+        if h0 == 0 :
+            h0 = dL
 
         # Find the top,bottom, left and right range
         top,bott,left,right = self.defineRange(pos)

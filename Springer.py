@@ -1,10 +1,79 @@
 import matplotlib.pyplot as plt
-#import math
+import math
+from GWords import GWords
 from GCodeGenerator import GCodeGenerator
 from ReadRecipe import ReadRecipe
 from AreaFill import AreaFill
 #from Polygram import Polygrams
 from Ellipse import Ellipse
+
+# Rotate (x,y) CounterClockwise
+#  |x|    [ cos   -sin ] | x0 |
+#  |y| =  [ sin    cos ] | y0 |
+def rotation( x0, y0, theta ) :
+
+    x = x0*math.cos(theta) - y0*math.sin(theta)
+    y = x0*math.sin(theta) + y0*math.cos(theta)
+
+    return x,y
+
+
+
+# Read outline from a gcode
+def ReadOutline( shift_x =0, shift_y = 0) :
+    # Read GCode File
+    fname = input('Read filename : ')
+    f = open(fname, 'r+')
+
+    gd = GWords()
+    v = []
+    i = 0
+    for line in f:
+
+        if len(line) < 1:
+            continue
+
+        # 1. Read line from the file
+        gd.readline(line)
+
+        # 2. Get command ( G, M or ... )
+        gd.getCommand()
+        cmd = gd.command
+
+        # 3. Get X Y Z E F
+        gd.getPos()
+
+        if gd.posUpdated():
+
+            xi = gd.xVal
+            yi = gd.yVal
+            if gd.xVal ==0  and gd.yVal == 0 :
+                continue
+
+            xj, yj = rotation(xi, yi, -0.5*math.pi )
+            xj = xj + shift_x
+            yj = yj + shift_y
+
+            print(' shape [%d] (%.2f, %.2f)' %(i, xj, yj) )
+            v.append([xj, yj])
+            i = i+1
+
+
+    v.append( [v[0][0], v[0][1]] )
+    if len(v) > 0 :
+        vx0 = v[0][0]
+        vy0 = v[0][1]
+        vx1 = v[-1][0]
+        vy1 = v[-1][1]
+
+        if vx0 == vx1 and vy0 == vy1 :
+            print(' Closed Loop !' )
+        else :
+            print(' NOT Closed Loop !' )
+
+    return v
+
+
 
 # Get basic 8 printing parameters
 rcp = ReadRecipe('springer_rcp.txt')
@@ -23,11 +92,13 @@ rE = []
 # 1. Makeup a shape for test
 
 #                   a   b   x0 y0
-ellipse = Ellipse( 25, 50, 80, 80 )
-shapeV = ellipse.getEllipse()
+#ellipse = Ellipse( 25, 50, 80, 80 )
+#shapeV = ellipse.getEllipse()
 
-ellipse = Ellipse( 27, 54, 80, 80 )
-skirtV = ellipse.getEllipse()
+#ellipse = Ellipse( 27, 54, 80, 80 )
+#skirtV = ellipse.getEllipse()
+
+shapeV = ReadOutline( -150 , 350)
 
 # 2. Basics for the Grids
 
@@ -70,7 +141,7 @@ zz = z0
 # Add skirt of the circle
 #polyObj.AddSkirt(rs, rx, ry, rz, rE )
 
-cl.getResult(skirtV, zz, rs, rx, ry, rz, rE, True)
+cl.getResult(shapeV, zz, rs, rx, ry, rz, rE, True)
 
 for i in range(len(rs)) :
     rs[i]  = 2
@@ -106,8 +177,8 @@ ax.set_xlabel('x')
 ax.set_ylabel('y')
 
 # Plot XY limit and grid
-plt.xlim([5, 125])
-plt.ylim([5, 125])
+plt.xlim([5, 225])
+plt.ylim([5, 225])
 plt.grid(b=True, which='major')
 ax.scatter( x,  y,  s=50, marker= 'o', facecolors='red', edgecolors='red' )
 
