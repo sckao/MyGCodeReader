@@ -21,12 +21,11 @@ class GetQuiverObject:
 
     key_val = ''
 
-    def __init__(self, axes, objlist, gfile ):
+    def __init__(self, axes, objlist ):
         self.ax = axes
         self.objV = objlist
         self.press = None
         self.viewbounds = self.ax.viewLim.bounds
-        self.IO = gfile
         #self.ax.set_autoscale_on( False )
 
     def objMatch(self, mx, my):
@@ -100,8 +99,6 @@ class GetQuiverObject:
                     + ' in list {:.3f}'.format( self.objV[self.idx][0] ) + '. {:.3f}'.format( self.objV[self.idx][1] ) )
 
             # Update position to current mouse position
-            #self.IO.write( '; %d, %.3f, %.3f, %.3f, %.4f,  %.3f, %.3f \n'
-            #               %(self.idx, self.objV[self.idx][0], self.objV[self.idx][1],  self.objV[self.idx][2], self.objV[self.idx][3],mx, my))
             self.objV[self.idx][0] = mx
             self.objV[self.idx][1] = my
             print('>{:3d}'.format(self.idx) + ') new points:{:.3f}'.format(self.objV[self.idx][0] ) + ', {:.3f}'.format(self.objV[self.idx][1])  )
@@ -224,7 +221,7 @@ def SetQuiver( ax, gV,  X0 = 0. , Y0 = 0. ) :
 
 # gV contains the positions of every X-Y movement, color code and moveType
 # Draw the path in this particular layer
-def ShowPath( gV, gfile, xlimL = -5, xlimR = 355, ylimB = -5, ylimT = 305 ):
+def ShowPath( gV, xlimL = -5, xlimR = 355, ylimB = -5, ylimT = 305 ):
 
     # setup cavas
     fig = plt.figure( figsize=(8,8) )
@@ -241,7 +238,7 @@ def ShowPath( gV, gfile, xlimL = -5, xlimR = 355, ylimB = -5, ylimT = 305 ):
     plt.grid(b=True, which='major')
 
     # Setup call-back function
-    qObj = GetQuiverObject( ax, gV, gfile )
+    qObj = GetQuiverObject( ax, gV )
     qObj.objPick()
 
     #bounds = ax.viewLim.bounds

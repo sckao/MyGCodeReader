@@ -449,6 +449,17 @@ class AreaFill :
         print(' x0 = %.2f ' %(x0))
         return x0
 
+    def interventionFill(self, y, ylist, dsdLnm ):
+
+        for i in range( len(ylist) ) :
+
+            if y == ylist[i] :
+                ds = dsdLnm[i][0]
+                dL = dsdLnm[i][1]
+                n  = dsdLnm[i][2]
+                m  = dsdLnm[i][3]
+                return ds, dL, n, m
+
 
     # pos is the outline shape
     def FillArbitrary(self, pos, ds, dL, n, m):
@@ -459,7 +470,10 @@ class AreaFill :
         h0 = h0
         print('w: %.3f , h: %.3f' % (w0, h0))
 
+        # This is the case for line-fill
+        isLineFill = False
         if h0 == 0 :
+            isLineFill = True
             h0 = dL
 
         # Find the top,bottom, left and right range
@@ -478,9 +492,8 @@ class AreaFill :
         print( 'Range top: %.2f , bott: %.2f, left: %.2f , right: %.2f' %(yRange[0], yRange[1], xRange[0], xRange[1]))
 
         # setup starting Y and X position (x0,y0)
-        y0 = yRange[0] - (h0)
+        y0 = yRange[0] - h0
 
-        dy = h0/2
         y = y0
         arcV = []
         i=0
@@ -497,6 +510,8 @@ class AreaFill :
                 poly.createLineNew1( lineV, y, xRange, ds*pow(-1,i), dL, n, 1 )
                 self.findBoundaryNew( lineV, pos, arcV )
                 y = y - 3*poly.beadwidth
+                if isLineFill :
+                    y = y - h0
             else:
                 #x = self.startX( w0, xRange, [xL,xR], True )
                 poly.createLineNew1( lineV, y, xRange, ds*pow(-1,i), dL, n, 1 )

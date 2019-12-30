@@ -10,17 +10,40 @@ from Ellipse import Ellipse
 # Rotate (x,y) CounterClockwise
 #  |x|    [ cos   -sin ] | x0 |
 #  |y| =  [ sin    cos ] | y0 |
-def rotation( x0, y0, theta ) :
+def rotation( pos, theta ) :
 
+    x0 = pos[0]
+    y0 = pos[1]
     x = x0*math.cos(theta) - y0*math.sin(theta)
     y = x0*math.sin(theta) + y0*math.cos(theta)
+    pos[0] = x
+    pos[1] = y
 
     return x,y
 
+def zoom( pos, scale ) :
+
+    x0 = pos[0]
+    y0 = pos[1]
+    r0 = math.sqrt( (x0*x0) + (y0*y0) )
+    cos = x0/r0
+    sin = y0/r0
+
+    r = r0*scale
+    x = r*cos
+    y = r*sin
+    pos[0] = x
+    pos[1] = y
+
+def shift( pos, dx, dy ) :
+
+     pos[0] = pos[0] + dx
+     pos[1] = pos[1] + dy
 
 
-# Read outline from a gcode
-def ReadOutline( shift_x =0, shift_y = 0) :
+
+   # Read outline from a gcode
+def ReadOutline( ) :
     # Read GCode File
     fname = input('Read filename : ')
     f = open(fname, 'r+')
@@ -50,9 +73,14 @@ def ReadOutline( shift_x =0, shift_y = 0) :
             if gd.xVal ==0  and gd.yVal == 0 :
                 continue
 
-            xj, yj = rotation(xi, yi, -0.5*math.pi )
-            xj = xj + shift_x
-            yj = yj + shift_y
+            pos = [xi,yi]
+            rotation( pos, -0.5*math.pi )
+            shift( pos, -150, 350 )
+            zoom(  pos, 0.7)
+
+            xj = pos[0]
+            yj = pos[1]
+
 
             print(' shape [%d] (%.2f, %.2f)' %(i, xj, yj) )
             v.append([xj, yj])
@@ -73,7 +101,9 @@ def ReadOutline( shift_x =0, shift_y = 0) :
 
     return v
 
-
+###################################################
+#             Springer project code               #
+###################################################
 
 # Get basic 8 printing parameters
 rcp = ReadRecipe('springer_rcp.txt')
@@ -98,7 +128,55 @@ rE = []
 #ellipse = Ellipse( 27, 54, 80, 80 )
 #skirtV = ellipse.getEllipse()
 
-shapeV = ReadOutline( -150 , 350)
+# Read a GCode Shape file
+shapeV = ReadOutline()
+
+# Generate outer wall and skirt
+skirtV = []
+xc = 0
+yc = 0
+xc1 = 0
+yc1 = 0
+for it in shapeV :
+
+    skirtP = [ it[0], it[1] ]
+    zoom(  skirtP, 1.1)
+    skirtV.append( skirtP )
+
+    xc  = xc + it[0]
+    yc  = yc + it[1]
+    xc1 = xc1 + skirtP[0]
+    yc1 = yc1 + skirtP[1]
+
+xc  = xc/len(shapeV)
+yc  = yc/len(shapeV)
+xc1 = xc1/len(shapeV)
+yc1 = yc1/len(shapeV)
+d_x = xc - xc1
+d_y = yc - yc1
+
+for it in skirtV :
+    shift( it, d_x, d_y )
+
+
+
+# Divide the shoe shape into 3 parts
+shapeV1 = []
+shapeV2 = []
+shapeV3 = []
+
+# partition shape into upper and lower parts
+for it in shapeV :
+
+     if it[1] > 150 :
+         shapeV1.append( [ it[0], it[1] ] )
+
+     if it[1] < 150 and it[1] > 100 :
+         shapeV2.append( [ it[0], it[1] ] )
+
+     if it[1] < 100 :
+         shapeV3.append( [ it[0], it[1] ] )
+
 
 # 2. Basics for the Grids
 
@@ -122,8 +200,40 @@ delta = ds*1.1
 # Start constructing
 cl = AreaFill()
 cl.setPrintable(rcp.Fval, rcp.rho, rcp.bs )
-arcV = cl.FillArbitrary( shapeV, ds, dL, n_up, n_low )
+print(' Find Middle XBoundary !!')
+xL1, xR1 = cl.findXBoundary(150, shapeV)
+xL2, xR2 = cl.findXBoundary(100, shapeV)
+
+shapeV2.insert( 0, [xL1[0], 150] )
+shapeV2.append( [xR1[0], 150] )
+for i in range( len(shapeV2 )) :
+    if shapeV2[i][0] <  60 and shapeV2[i+1][0]> 60 :
+        shapeV2.insert(i+1, [xL2[0], 100] )
+        shapeV2.insert(i+2, [xR2[0], 100] )
+        break
+
+
+shapeV3.insert( 0, [xL2[0], 100] )
+shapeV3.append( [xR2[0], 100] )
+
+# Start Filling
+#arcV = cl.FillArbitrary( shapeV, ds, dL, n_up, n_low )
+print(' Get upper part ')
+arcV1 = cl.FillArbitrary( shapeV1, ds, dL, n_up, n_low )
+print(' Get lower part ')
+arcV2 = cl.FillArbitrary( shapeV2, 70, 2, 0, 0 )
 print(' dL = %.3f , ds = %.3f ' %(dL, ds))
+arcV3 = cl.FillArbitrary( shapeV3, 10, 0, 1, 1 )
+print(' dL = %.3f , ds = %.3f ' %(dL, ds))
+
+arcV = []
+for it in arcV1 :
+    arcV.append( [ it[0], it[1]] )
+for it in arcV2 :
+    arcV.append( [ it[0], it[1]] )
+for it in arcV3 :
+    arcV.append( [ it[0], it[1]] )
+
 
 #dd = polychain.beadwidth*yspacing_scale*2
 #rr = math.sqrt( pow((x1 -xc),2) + pow((y1-yc),2) )
@@ -141,15 +251,15 @@ zz = z0
 # Add skirt of the circle
 #polyObj.AddSkirt(rs, rx, ry, rz, rE )
 
-cl.getResult(shapeV, zz, rs, rx, ry, rz, rE, True)
+# Output the skirt or shape outline
+#cl.getResult(skirtV, zz, rs, rx, ry, rz, rE, True)
+#cl.getResult(shapeV, zz, rs, rx, ry, rz, rE, True)
 
 for i in range(len(rs)) :
     rs[i]  = 2
 
 for i in range( nSlice ) :
 
-    # Circle
-    #polyObj.Construct2D(zz, rs, rx, ry, rz, rE, True )
     # Polygon Fill
     cl.getResult(arcV, zz, rs, rx, ry, rz, rE, True)
     print( ' z = %.3f ' %( zz ))
