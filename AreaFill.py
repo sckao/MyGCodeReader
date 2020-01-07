@@ -3,16 +3,20 @@ from PolygonFill import PolygonFill
 from PolygonFill import SolveLine
 from PolygonFill import Intersection
 
-class AreaFill :
+class AreaFill:
 
     def __init__(self):
         # do nothing
         self.Fval = 500.
         self.rho = 0.8
         self.rd = 5.0
+        self.yScale = 1.
+        self.BSScale = 1.
+        self.partition_dx = 0
+        self.partition_dy = 0
 
     # Tip speace (ts) and Bead height (bh) and first layer adjustment (fh) and retract distance (rd)
-    def setTipHeight(self, ts0=0.35, bh0=0.5, fh0=0.1, rd0 = 5):
+    def setTipHeight(self, ts0=0.35, bh0=0.5, fh0=0.1, rd0 = 10):
         self.ts = ts0
         self.bh = bh0
         self.fh = fh0
@@ -20,13 +24,16 @@ class AreaFill :
         self.z0 = self.ts + self.bh + self.fh
         return self.z0
 
-    def setPrintable(self, fval, rho, bs ) :
+    def setPrintable(self, fval, rho, bs ):
 
         self.Fval = fval
         self.rho = rho
         self.bs = bs
         self.Eval = self.Fval* self.rho
 
+    # the scale of bead spacing , in unit of bead width
+    def setBeadSpacing(self, bs_scale):
+        self.BSScale = bs_scale
 
     def LineFillCircle(self, xc, yc, r, dy):
 
@@ -181,7 +188,7 @@ class AreaFill :
 
             # Calculate Eval
             prime_eval = 0.1
-            retract_eval = -1
+            retract_eval = -3
             shift_eval = -1
             if i == 0:
 
@@ -309,7 +316,7 @@ class AreaFill :
             if x1 != 0. and x2 != 0 :
                 break
 
-        print( ' X Boundary => x1: %.2f, x2: %.2f ' %( x1, x2) )
+        #print( ' X Boundary => x1: %.2f, x2: %.2f ' %( x1, x2) )
 
         if x1 < x2 :
             return b1,b2
@@ -328,9 +335,9 @@ class AreaFill :
         m1, d1 = SolveLine( s1[0], s1[1], s2[0], s2[1] )
         m2, d2 = SolveLine( p1[0], p1[1], p2[0], p2[1] )
         xi, yi = Intersection(m1, d1, m2, d2)
-        print( 'L1 %.2f,%.2f -  %.2f,%.2f' % ( s1[0], s1[1], s2[0], s2[1]) )
-        print( 'L2 %.2f,%.2f -  %.2f,%.2f' % ( p1[0], p1[1], p2[0], p2[1]) )
-        print( 'Sol : %.2f,%.2f ' % (xi, yi) )
+        #print( 'L1 %.2f,%.2f -  %.2f,%.2f' % ( s1[0], s1[1], s2[0], s2[1]) )
+        #print( 'L2 %.2f,%.2f -  %.2f,%.2f' % ( p1[0], p1[1], p2[0], p2[1]) )
+        #print( 'Sol : %.2f,%.2f ' % (xi, yi) )
 
         isInter = True
         if xi < min(s1[0], s2[0]) or xi > max(s1[0],s2[0] ) :
@@ -356,17 +363,17 @@ class AreaFill :
 
             b1, b2 = self.findXBoundary( lineV[i][1], posV )
             b3, b4 = self.findXBoundary( lineV[i+1][1], posV )
-            print(' Line X(%.1f) , boundary( %.1f ~ %.1f) ' %( lineV[i][0], b1[0], b2[0] ) )
+            #print(' Line X(%.1f) , boundary( %.1f ~ %.1f) ' %( lineV[i][0], b1[0], b2[0] ) )
             if b1[0] == 0  or b2[0] == 0 :
-                print(' Line Fail !!! ')
+                #print(' Line Fail !!! ')
                 continue ;
             if b3[0] == 0  or b4[0] == 0 :
-                print(' Line Fail !!! ')
+                #print(' Line Fail !!! ')
                 continue ;
 
             if lineV[i][0] > b1[0] and lineV[i][0] < b2[0] :
                 fillV.append( lineV[i] )
-                print(' Accepted (%.1f, %.1f)' %( lineV[i][0], lineV[i][1]))
+                #print(' Accepted (%.1f, %.1f)' %( lineV[i][0], lineV[i][1]))
 
             if lineV[i][0] < b1[0] and lineV[i+1][0] > b3[0] :
                 j = b3[1]
@@ -378,7 +385,7 @@ class AreaFill :
                     xi,yi, isInter = self.findIntersection( lineV[i], lineV[i+1], posV[j], posV[k] )
 
                 fillV.append( [xi,yi] )
-                print(' Found Boundary1 (%.1f, %.1f)' %(xi,yi))
+                #print(' Found Boundary1 (%.1f, %.1f)' %(xi,yi))
 
             if lineV[i][0] < b2[0] and lineV[i+1][0] > b4[0] :
                 j = b4[1]
@@ -389,7 +396,7 @@ class AreaFill :
                     k = b2[2]
                     xi,yi, isInter = self.findIntersection( lineV[i], lineV[i+1], posV[j], posV[k] )
                 fillV.append( [xi,yi] )
-                print(' Found Boundary2 (%.1f, %.1f)' %(xi,yi))
+                #print(' Found Boundary2 (%.1f, %.1f)' %(xi,yi))
 
             if lineV[i][0] > b1[0] and lineV[i+1][0] < b3[0] :
                 j = b1[1]
@@ -400,7 +407,7 @@ class AreaFill :
                     k = b3[2]
                     xi,yi, isInter = self.findIntersection( lineV[i], lineV[i+1], posV[j], posV[k] )
                 fillV.append( [xi,yi] )
-                print(' Found Boundary3 (%.1f, %.1f)' %(xi,yi))
+                #print(' Found Boundary3 (%.1f, %.1f)' %(xi,yi))
 
             if lineV[i][0] > b2[0] and lineV[i+1][0] < b4[0] :
                 j = b2[1]
@@ -411,7 +418,7 @@ class AreaFill :
                     k = b4[2]
                     xi,yi, isInter = self.findIntersection( lineV[i], lineV[i+1], posV[j], posV[k] )
                 fillV.append( [xi,yi] )
-                print(' Found Boundary4 (%.1f, %.1f)' %(xi,yi))
+                #print(' Found Boundary4 (%.1f, %.1f)' %(xi,yi))
 
 
     # ranges : the partition range
@@ -462,12 +469,20 @@ class AreaFill :
 
 
     # pos is the outline shape
+    def setPatternYscale(self, scale ):
+
+        self.yScale = scale
+
+    def shiftPartition(self, dx, dy ):
+        self.partition_dx = dx
+        self.partition_dy = dy
+
     def FillArbitrary(self, pos, ds, dL, n, m):
 
         poly = PolygonFill()
         # determine the unit polygon size
-        w0, h0 = poly.unitSize(ds, dL, n, m)
-        h0 = h0
+        w0, h0 = poly.unitSize(ds, dL, n, m, 1. )
+        h0 = h0*self.yScale
         print('w: %.3f , h: %.3f' % (w0, h0))
 
         # This is the case for line-fill
@@ -486,9 +501,9 @@ class AreaFill :
 
         # Re-define the range of partition space
         deltaX = (nX*w0) - ( right[0] - left[0] )
-        xRange = [ left[0]-(deltaX/2) , right[0]+(deltaX/2) ]
+        xRange = [ left[0]-(deltaX/2) + self.partition_dx , right[0]+(deltaX/2) + self.partition_dx ]
         deltaY = (nY*h0) - ( top[1] - bott[1] )
-        yRange = [ top[1] + (deltaY/2), bott[1] - (deltaY/2) ]
+        yRange = [ top[1] + (deltaY/2) + self.partition_dy , bott[1] - (deltaY/2) + self.partition_dy ]
         print( 'Range top: %.2f , bott: %.2f, left: %.2f , right: %.2f' %(yRange[0], yRange[1], xRange[0], xRange[1]))
 
         # setup starting Y and X position (x0,y0)
@@ -504,19 +519,26 @@ class AreaFill :
             #xL,xR,xLs,xRs = self.findBoundary( y, dy*pow(-1,i), bott[1], top[1], pos )
             #xL,xR,xLs,xRs = self.findBoundary( y, dy*pow(-1,i), yRange[1], yRange[0], pos )
 
+            # Assign the number of tip for upper or lower sides
+            if i%4 == 0 or i%4 == 3 :
+                n_tip = n
+            if i%4 == 1 or i%4 == 2 :
+                n_tip = m
+
+
             if i%2 == 0:
                 #x = self.startX( w0, xRange, [xL,xR] )
                 #poly.createLineNew( arcV, x, y, xL, xR, xLs, xRs, ds*pow(-1,i), dL, n, 1 )
-                poly.createLineNew1( lineV, y, xRange, ds*pow(-1,i), dL, n, 1 )
+                poly.createLineNew1( lineV, y, xRange, ds*pow(-1,i), dL, n_tip, self.yScale )
                 self.findBoundaryNew( lineV, pos, arcV )
-                y = y - 3*poly.beadwidth
+                y = y - self.BSScale*poly.beadwidth
                 if isLineFill :
                     y = y - h0
             else:
                 #x = self.startX( w0, xRange, [xL,xR], True )
-                poly.createLineNew1( lineV, y, xRange, ds*pow(-1,i), dL, n, 1 )
+                poly.createLineNew1( lineV, y, xRange, ds*pow(-1,i), dL, n_tip, self.yScale )
                 self.findBoundaryNew( lineV, pos, arcV )
-                y = y - h0 - 3*poly.beadwidth
+                y = y - h0 - self.BSScale*poly.beadwidth
 
             i = i+1
 
