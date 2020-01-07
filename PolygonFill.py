@@ -8,6 +8,9 @@ from ReadRecipe import ReadRecipe
 #  |y2|   | x2  1 | | d |
 #   a = np.array([x1, 1] , [x2,1])   b = [y1, y2] , c = [m,d]
 def SolveLine( x1, y1, x2, y2 ) :
+    # to avoid m is infinit
+    if x1 == x2 :
+        x2 = x2*0.999999
     a = np.array( [[ x1, 1.] , [ x2, 1.]]  )
     b = np.array( [y1, y2 ]  )
     c = np.linalg.solve(a,b)
@@ -19,6 +22,9 @@ def SolveLine( x1, y1, x2, y2 ) :
 # Solve two line ( y = mx + d )
 # return intersection point x,y
 def Intersection( m1, d1, m2, d2 ) :
+    if m1 == m2 :
+        m1 = m1*1.0000001
+        m2 = m2*0.9999999
     a = np.array( [[m1, -1.], [m2, -1.]] )
     b = np.array( [ -1*d1, -1*d2 ] )
     c = np.linalg.solve(a, b)
@@ -550,14 +556,14 @@ class PolygonFill:
                 x = x + ds
                 lineV.append( [x, y] )
                 dX = abs(x - iniX)
-                print( ' x1 = %.2f , dX = %.2f / %.2f' %(x, dX, pathL) )
+                #print( ' x1 = %.2f , dX = %.2f / %.2f' %(x, dX, pathL) )
 
             # 2. Add connecting segment
             if ( dX + dL ) < pathL :
                 x = x + (dL*pn)
                 lineV.append( [x,y] )
                 dX = abs(x - iniX)
-                print( ' x2 = %.2f , dX = %.2f / %.2f' %(x, dX, pathL) )
+                #print( ' x2 = %.2f , dX = %.2f / %.2f' %(x, dX, pathL) )
             else :
                 x = endX
                 lineV.append([x,y])
@@ -567,67 +573,10 @@ class PolygonFill:
         dY = dY*pn
         # review points and strips those out of boundary
         nPnt = len(lineV)
-        print(' N Point = %d , dY = %.2f' %(nPnt, dY) )
+        #print(' N Point = %d , dY = %.2f' %(nPnt, dY) )
         for i in range( nPnt ) :
             arcV.append( lineV[i] )
 
-        '''
-        for i in range( nPnt ) :
-
-            # for the left side
-            if lineV[i][0] < lBound[0] and i < (nPnt-1) :
-                j = i + (pn*1)
-                # find the cross point
-                if lineV[j][0] > lBound[0] :
-                    print(' L cross @ i(%d) -> j(%d)' %(i,j))
-                    m1, d1 = SolveLine( lineV[i][0], lineV[i][1], lineV[j][0], lineV[j][1] )
-                    m2, d2 = SolveLine( lBound[0], theY, lBound[1], theY + dY )
-                    xi, yi = Intersection( m1, d1, m2, d2 )
-                    print( 'L1 %.2f,%.2f -  %.2f,%.2f' %( lineV[i][0], lineV[i][1], lineV[j][0], lineV[j][1] ))
-                    print( 'L2 %.2f,%.2f -  %.2f,%.2f' %( lBound[0], theY, lBound[1], theY + dY ))
-                    print( 'Sol : %.2f,%.2f ' %(xi,yi))
-                    if xi < min( lineV[i][0], lineV[j][0] ) or xi > max( lineV[i][0], lineV[j][0] ) :
-                        print('bad X solution : %.2f - %.2f - %.2f ' %(lineV[i][0], xi, lineV[j][0] ) )
-                        #xi = (lineV[i][0] + lineV[j][0]) / 2
-                        xi = (lBound[0] + lBound[1]) / 2
-                        yi = theY + (dY/2)
-                    if yi < min( theY, theY + dY ) or yi > max( theY, theY + dY ) :
-                        print('bad Y solution : %.2f - %.2f - %.2f ' %(lineV[i][1], yi, lineV[j][1] ) )
-                        #yi = (lineV[i][1] + lineV[j][1]) / 2
-                        xi = (lBound[0] + lBound[1]) / 2
-                        yi = theY + (dY/2)
-
-                    arcV.append( [xi,yi] )
-
-            if lineV[i][0] > lBound[0] and lineV[i][0] < rBound[0] :
-
-                arcV.append( lineV[i] )
-
-            # for the right side
-            if lineV[i][0] > rBound[0] and i > 0 :
-                j = i - (pn*1)
-                # find the cross point
-                if lineV[j][0] < rBound[0] :
-                    print(' R cross @ i(%d) -> j(%d)' %(i,j))
-                    m1, d1 = SolveLine( lineV[i][0], lineV[i][1], lineV[j][0], lineV[j][1] )
-                    m2, d2 = SolveLine( rBound[0], theY, rBound[1], theY + dY )
-                    xi, yi = Intersection( m1, d1, m2, d2 )
-                    print( 'L1 %.2f,%.2f -  %.2f,%.2f' %( lineV[i][0], lineV[i][1], lineV[j][0], lineV[j][1] ))
-                    print( 'L2 %.2f,%.2f -  %.2f,%.2f' %( lBound[0], theY, lBound[1], theY + dY ))
-                    print( 'Sol : %.2f,%.2f ' %(xi,yi))
-                    if xi < min( lineV[i][0], lineV[j][0] ) or xi > max( lineV[i][0], lineV[j][0] ) :
-                        print('bad X solution : %.2f - %.2f - %.2f ' %(lineV[i][0], xi, lineV[j][0] ) )
-                        #xi = (lineV[i][0] + lineV[j][0]) / 2
-                        xi = (rBound[0] + rBound[1]) / 2
-                        yi = theY + (dY/2)
-                    if yi < min( theY, theY + dY ) or yi > max( theY, theY + dY ) :
-                        print('bad Y solution : %.2f - %.2f - %.2f ' %(lineV[i][1], yi, lineV[j][1] ) )
-                        #yi = (lineV[i][1] + lineV[j][1]) / 2
-                        xi = (rBound[0] + rBound[1]) / 2
-                        yi = theY + (dY/2)
-
-                    arcV.append( [xi,yi] )
-        '''
 
     # Input starting x,y positions and length (L)
     def FillAreaN(self, xV, yV, LV, ds, dL, n, m, k = 1, z = 0, scale = 1. ):
@@ -790,129 +739,3 @@ class PolygonFill:
         nw = int(wShell/w0)
         nh = int(hShell/h0)
 
-
-
-
-##################################
-#       Testing PolygonFill      #
-##################################
-'''
-# Get basic 8 printing parameters
-recipe = ReadRecipe('formNext_rcp.txt')
-recipe.getPrintable()
-
-x= []
-y= []
-
-rs = []
-rx = []
-ry = []
-rz = []
-rE = []
-
-polychain = PolygonFill()
-# Setup                    fval,          rho,    beadwidth
-polychain.setParameters( recipe.Fval, recipe.rho, recipe.bs )
-#polychain.setParameters(4000, 1.12, 1.0)
-# Setup    tip spacing, bead height, first bead height
-#z0 = polychain.setTipHeight(0.15, 0.55, 0.1)
-z0 = polychain.setTipHeight( recipe.ts, recipe.bh, recipe.fh )
-
-spacing_scale = 0.75
-polychain.setArcSpacing( spacing_scale)
-
-iniX = 50
-iniY = 80
-n_up = 2
-n_low = 2
-ds = 16
-dL = 8
-nLayer = 1
-nSlice = 10
-#scale = 0.57735
-scale = 1
-
-dr = ds + dL
-
-LV = [ dr*5, dr*5 , dr*5, dr*5 ]
-xV0 = [0,0,0,0,0]
-yV = []
-xV = []
-w0 , h0 = polychain.unitSize(ds,dL,n_up, n_low, nLayer, scale)
-x1 = iniX
-y1 = iniY
-dd = polychain.beadwidth*spacing_scale*2
-for i in range( len(LV) ):
-    x1 = iniX + xV0[i]
-    xV.append( x1 )
-    yV.append( y1 )
-    #y1 = y1 - h0 - ((polychain.beadwidth)*2 ) + dd - i*0.25*polychain.beadwidth
-    y1 = y1 - h0 - ((polychain.beadwidth)*2 ) + dd
-    #y1 = y1 - h0 - ((polychain.beadwidth)*2 )
-    #iniX = iniX  - (polychain.beadwidth/math.tan( math.pi/(n_up+n_low+2) ))
-
-polychain.addSkirt(iniX, iniY, LV, ds, dL, n_up, n_low, nLayer, 5, scale)
-#polychain.getData4Gcode(rx,ry,rz,rs,rE)
-print( ' skirt size = %d' %(len(rx)))
-
-fs = polychain.bh + polychain.ts
-zz = z0
-
-for i in range( nSlice ) :
-
-    if i > 0 :
-        polychain.reset()
-
-    x, y = polychain.FillAreaN(xV, yV, LV, ds, dL, n_up, n_low, nLayer, zz, scale)
-    polychain.getData4Gcode(rx,ry,rz,rs,rE,True)
-    print( ' z = %.3f ' %( zz ))
-    zz = zz + fs
-
-gc = GCodeGenerator( rs, rx, ry, rz, rE, polychain.Fval )
-#gc.SetGlideSpeed( polyObj.gFval1, polyObj.gFval2 )
-#gc.SetGlideSpeed( 2000, 3000 )
-#gc.Gliding( 0.06, 0.1 , 0.06, 0.1, rs, rx, ry, rz, rE )
-#gc.Shift( 150, 150, 0 )
-gc.Generate()
-
-#arcs, h = polychain.createChain( iniX, iniY,70,ds, dL, n_up, n_low, 1)
-#polychain.getResult( arcs, x,y)
-#arcs, h = polychain.createChain( iniX, iniY,70,ds, dL, n_up, n_low, 2)
-#polychain.getResult( arcs, x,y)
-#arcs, h = polychain.createChain( iniX, iniY,70,ds, dL, n_up, n_low, 3)
-#polychain.getResult( arcs, x,y)
-
-
-
-# setup cavas
-fig = plt.figure( figsize=(7.5,7.5) )
-fig.suptitle( 'Polygon Test', fontsize=10, fontweight='bold')
-
-# one sub plot (x,y,index)
-ax = fig.add_subplot(111)
-ax.set_xlabel('x')
-ax.set_ylabel('y')
-
-# Plot XY limit and grid
-plt.xlim([25, 125])
-plt.ylim([25, 115])
-plt.grid(b=True, which='major')
-ax.scatter( x,  y,  s=50, marker= 'o', facecolors='red', edgecolors='red' )
-
-# Start Routing (x,y) -> (xt,yt) -> (x,y)
-print( ' total point %d ' %( len(x)) )
-x_ = x[0]
-y_ = y[0]
-nPoint = len( x )
-for i in range( nPoint -1 ) :
-    dX = x[i+1] - x_
-    dY = y[i+1] - y_
-    # print(" i= " + str(i) + "( " + str( i[0]) + ", " + str(i[1]) + ")" )
-    ax.quiver(x_, y_, dX, dY, angles='xy', scale_units='xy', scale=1, color='green', picker=2)
-
-    x_ = x[i+1]
-    y_ = y[i+1]
-
-
-plt.show()
-'''

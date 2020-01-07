@@ -111,6 +111,33 @@ class Rectangle :
 
         self.shelled = True
 
+    def GetShape(self, ud = 1 ):
+
+        shapeV = []
+        d = self.length
+        w = self.width
+        phi = self.phi
+        x = self.x0
+        y = self.y0
+
+        shapeV.append( [x,y] )
+
+        x = x + d*math.cos(phi)
+        y = y + d*math.sin(phi)
+        shapeV.append( [x,y] )
+
+        x = x
+        y = y + (ud*w)
+        shapeV.append( [x,y] )
+
+        x = x + d*math.cos( phi - math.pi )
+        y = y + d*math.sin( phi - math.pi )
+        shapeV.append( [x,y] )
+
+        shapeV.append( [self.x0, self.y0] )
+
+        return shapeV
+
     # ud : -1 for downward  , 1 for upward
     def AddSkirt(self, delta =20, ud = 1 ):
 
@@ -311,13 +338,13 @@ class Rectangle :
             self.u = []
             self.v = []
             print(' Layer %d = %.3f ' %(i,z ))
-            if i%2 == 0 :
-                self.XZigzagFill( 1, self.yBWscale )
+            if i%2 == 3 :
+                self.YZigzagFill( 1, self.yBWscale )
                 self.GetResult( z, rx, ry, rz, rE, rS )
                 self.u = []
                 self.v = []
             else :
-                self.YZigzagFill( 1, self.xBWscale )
+                self.XZigzagFill( 1, self.xBWscale )
                 self.GetResult( z, rx, ry, rz, rE, rS )
                 self.u = []
                 self.v = []

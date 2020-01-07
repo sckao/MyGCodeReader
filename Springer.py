@@ -4,6 +4,7 @@ from GWords import GWords
 from GCodeGenerator import GCodeGenerator
 from ReadRecipe import ReadRecipe
 from AreaFill import AreaFill
+from ConcentricFill import ConcentricFill
 #from Polygram import Polygrams
 from Ellipse import Ellipse
 
@@ -132,6 +133,7 @@ rE = []
 shapeV = ReadOutline()
 
 # Generate outer wall and skirt
+'''
 skirtV = []
 xc = 0
 yc = 0
@@ -157,7 +159,10 @@ d_y = yc - yc1
 
 for it in skirtV :
     shift( it, d_x, d_y )
+'''
 
+cf = ConcentricFill()
+skirtV = cf.GetOutline(shapeV, 5, False)
 
 
 # Divide the shoe shape into 3 parts
@@ -220,11 +225,14 @@ shapeV3.append( [xR2[0], 100] )
 #arcV = cl.FillArbitrary( shapeV, ds, dL, n_up, n_low )
 print(' Get upper part ')
 arcV1 = cl.FillArbitrary( shapeV1, ds, dL, n_up, n_low )
-print(' Get lower part ')
+print(' Get center part ')
 arcV2 = cl.FillArbitrary( shapeV2, 70, 2, 0, 0 )
-print(' dL = %.3f , ds = %.3f ' %(dL, ds))
-arcV3 = cl.FillArbitrary( shapeV3, 10, 0, 1, 1 )
-print(' dL = %.3f , ds = %.3f ' %(dL, ds))
+print(' Get Lower part ')
+#cl.setPatternYscale( 0.5 )
+#arcV3 = cl.FillArbitrary( shapeV3, 14.142, 0, 1, 1 )
+arcV3 = cf.Fill(shapeV3, 5, True)
+
+
 
 arcV = []
 for it in arcV1 :
@@ -252,9 +260,10 @@ zz = z0
 #polyObj.AddSkirt(rs, rx, ry, rz, rE )
 
 # Output the skirt or shape outline
-#cl.getResult(skirtV, zz, rs, rx, ry, rz, rE, True)
-#cl.getResult(shapeV, zz, rs, rx, ry, rz, rE, True)
+cl.getResult(skirtV, zz, rs, rx, ry, rz, rE, True)
+cl.getResult(shapeV, zz, rs, rx, ry, rz, rE, True)
 
+# this is just to make the skirt or outline to other color
 for i in range(len(rs)) :
     rs[i]  = 2
 
