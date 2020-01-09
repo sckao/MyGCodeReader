@@ -46,11 +46,11 @@ class PolygonFill:
     Eval = Fval*rho
 
 
-    def __init__( self ):
+    def __init__( self, bw = 1.75 ):
 
         # n must be >=  3
         self.pos = []
-        self.beadwidth = 0.75
+        self.beadwidth = bw
         self.u = []
         self.v = []
         self.z = []

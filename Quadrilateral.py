@@ -43,6 +43,7 @@ class Rectangle :
         self.y0 = 0
         self.u = []
         self.v = []
+        self.noSkirt = False
 
     # Setup printable
     def SetPrintable(self, Fval, rho, bh, ts, fh, bw, rd , nlayer ):
@@ -67,10 +68,11 @@ class Rectangle :
         self.y0 = y0
 
     # setup filling method
-    def FillingSetup(self, addShell , xBWscale, yBWscale ):
+    def FillingSetup(self, addShell , xBWscale, yBWscale, noskirt = False ):
         self.shelled = addShell
         self.xBWscale = xBWscale
         self.yBWscale = yBWscale
+        self.noSkirt  = noskirt
 
     # setup retraction distance
     def RetractionSetup(self, rh ):
@@ -176,6 +178,41 @@ class Rectangle :
 
         self.u.append( x_0 )
         self.v.append( y_0 )
+
+
+    def GetSkirt(self, delta =20, ud = 1 ):
+
+        skirtV = []
+        phi = self.phi
+        LR = 1
+        if math.cos(phi) > 0 : LR =  1
+        else :                 LR = -1
+
+        dy = (delta/abs(math.cos(phi))) + LR*ud*(delta*abs(math.tan(phi)))
+        d = self.length + (2*delta/abs(math.cos(phi)))
+        w = self.width + (2*delta/abs(math.cos(phi)))
+        x = self.x0 - (delta*LR)
+        y = self.y0 - (ud*dy )
+
+        x_0 = x
+        y_0 = y
+
+        skirtV.append( [x,y] )
+
+        x = x + d*math.cos(phi)
+        y = y + d*math.sin(phi)
+        skirtV.append( [x,y] )
+
+        x = x
+        y = y + (ud*w)
+        skirtV.append( [x,y] )
+
+        x = x + d*math.cos( phi - math.pi )
+        y = y + d*math.sin( phi - math.pi )
+        skirtV.append( [  x, y ] )
+        skirtV.append( [x_0,y_0] )
+
+        return skirtV
 
 
     # phi : 0~ 2pi , angle of w-vector
@@ -326,10 +363,11 @@ class Rectangle :
 
         i = 0
         z = self.ts + self.bh + self.fh + self.zOffset
-        self.AddSkirt( 10, 1 )
-        self.GetResult( z, rx, ry, rz, rE, rS, False )
-        self.u = []
-        self.v = []
+        if self.noSkirt is False :
+            self.AddSkirt( 10, 1 )
+            self.GetResult( z, rx, ry, rz, rE, rS, False )
+            self.u = []
+            self.v = []
         #while h >= (i*self.bh ) :
         for i in range( self.nLayer ) :
 

@@ -35,10 +35,13 @@ class GWords :
         elif self.gWords[0]== 'G0' or self.gWords[0] == 'G1':
 
             self.isG0G1 = True
+            print(' Length of command : %d ' %( len(self.gWords) ))
 
             dr = [0,0]
             for ig in self.gWords :
                 #print( ' ig = '+ ig )
+                if ig[0] == ';':
+                    break
                 if ig[0] == 'X':
                     iVal = float( ig[1:] )
                     if iVal != self.xVal :
@@ -71,6 +74,9 @@ class GWords :
                     iVal = float( ig[1:] )
                     self.fVal = iVal*sF / 60.
                     self.update[4] = 1
+
+
+
             drMag = math.sqrt( (dr[0]*dr[0]) + (dr[1]*dr[1]) )
             if drMag > 0 :
                 self.rho = self.eVal / drMag

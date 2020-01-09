@@ -25,9 +25,15 @@ rS = []
 recObj = Rectangle( length, width , 1, angle )
 recObj.Setup( length, width, angle, int(rcp.nLayer), x0, y0 )
 recObj.SetPrintable( rcp.Fval, rcp.rho, rcp.bh, rcp.ts, rcp.fh, rcp.bs, rcp.rh, rcp.nLayer )
-recObj.FillingSetup( True, BSScale, BSScale)
+recObj.FillingSetup( True, BSScale, BSScale, False )
 recObj.Construct3D( rx, ry, rz, rE, rS )
 
+recObj.Setup( length, width, angle, int(rcp.nLayer), x0+12.5, y0 )
+recObj.SetPrintable( rcp.Fval, rcp.rho, rcp.bh, rcp.ts, 1.0, rcp.bs, rcp.rh, rcp.nLayer )
+recObj.FillingSetup( True, BSScale, BSScale, True )
+recObj.Construct3D( rx, ry, rz, rE, rS )
+
+# Grid printing configuration
 glength = rcp.getParameter('GLength')
 gwidth = rcp.getParameter('GWidth')
 gx0 = rcp.getParameter('GInitX')
@@ -36,8 +42,8 @@ gBSScale = rcp.getParameter('GBSScale')
 recObj1 = Rectangle( glength, gwidth , 1, angle )
 recObj1.Setup( glength, gwidth, angle, 1, gx0, gy0 )
 shapeV = recObj1.GetShape()
+shellV = recObj1.GetSkirt( -1*rcp.bs*gBSScale )
 
-# Grid printing configuration
 dL = rcp.getParameter('dL')
 ds = rcp.getParameter('ds')
 # Number of turn at upper and lower polygon
@@ -45,11 +51,11 @@ n_up = int ( rcp.getParameter('N_up') )
 n_low = int ( rcp.getParameter('N_low') )
 cl = AreaFill()
 cl.setPrintable(rcp.Fval, rcp.rho, rcp.bs )
-cl.setBeadSpacing( gBSScale )
+cl.setBeadSpacing( rcp.bs, gBSScale )
 psx = rcp.getParameter('Partition_dX')
 psy = rcp.getParameter('Partition_dY')
 cl.shiftPartition( psx , psy )
-arcV = cl.FillArbitrary( shapeV, ds, dL, n_up, n_low )
+arcV = cl.FillArbitrary( shellV, ds, dL, n_up, n_low )
 
 # add additional side (top edge)
 #edgeV = []
@@ -65,6 +71,7 @@ zz = (rcp.bh*(rcp.nLayer+1)) + rcp.ts + rcp.fh
 for i in range( int(nGLayer) ) :
 
     cl.getResult(shapeV, zz, rS, rx, ry, rz, rE, True)
+    #cl.getResult(shellV, zz, rS, rx, ry, rz, rE, True)
     cl.getResult(arcV, zz, rS, rx, ry, rz, rE, True)
     zz = zz + rcp.bh
 

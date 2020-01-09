@@ -12,6 +12,7 @@ class AreaFill:
         self.rd = 5.0
         self.yScale = 1.
         self.BSScale = 1.
+        self.beadWidth = 1.75
         self.partition_dx = 0
         self.partition_dy = 0
 
@@ -32,8 +33,10 @@ class AreaFill:
         self.Eval = self.Fval* self.rho
 
     # the scale of bead spacing , in unit of bead width
-    def setBeadSpacing(self, bs_scale):
+    def setBeadSpacing(self, bw, bs_scale):
         self.BSScale = bs_scale
+        self.beadWidth = bw
+
 
     def LineFillCircle(self, xc, yc, r, dy):
 
@@ -479,10 +482,13 @@ class AreaFill:
 
     def FillArbitrary(self, pos, ds, dL, n, m):
 
-        poly = PolygonFill()
+
+        beadSpacing = self.BSScale*self.beadWidth
+        poly = PolygonFill( )
+
         # determine the unit polygon size
         w0, h0 = poly.unitSize(ds, dL, n, m, 1. )
-        h0 = h0*self.yScale
+        h0 = (h0*self.yScale) + beadSpacing
         print('w: %.3f , h: %.3f' % (w0, h0))
 
         # This is the case for line-fill
@@ -496,18 +502,20 @@ class AreaFill:
         print( 'Range top: %.2f , bott: %.2f, left: %.2f , right: %.2f' %(top[1], bott[1], left[0], right[0]))
         # Partition the rectangle space
         nX = int( (right[0] - left[0]) / w0 ) + 1
-        nY = int( (top[1]   - bott[1]) / h0 ) + 1
+        nY = int( (top[1]   - bott[1]) / (h0 + beadSpacing) ) + 1
         print( 'NX: %d , NY: %d' %(nX, nY) )
 
         # Re-define the range of partition space
         deltaX = (nX*w0) - ( right[0] - left[0] )
-        xRange = [ left[0]-(deltaX/2) + self.partition_dx , right[0]+(deltaX/2) + self.partition_dx ]
+        #xRange = [ left[0]-(deltaX/2) + self.partition_dx , right[0]+(deltaX/2) + self.partition_dx ]
+        xRange = [ left[0] + self.partition_dx , right[0]+(deltaX) + self.partition_dx ]
         deltaY = (nY*h0) - ( top[1] - bott[1] )
-        yRange = [ top[1] + (deltaY/2) + self.partition_dy , bott[1] - (deltaY/2) + self.partition_dy ]
+        #yRange = [ top[1] + (deltaY/2) + self.partition_dy , bott[1] - (deltaY/2) + self.partition_dy ]
+        yRange = [ top[1] + self.partition_dy , bott[1] - deltaY + self.partition_dy ]
         print( 'Range top: %.2f , bott: %.2f, left: %.2f , right: %.2f' %(yRange[0], yRange[1], xRange[0], xRange[1]))
 
         # setup starting Y and X position (x0,y0)
-        y0 = yRange[0] - h0
+        y0 = yRange[0] - (h0/2) + (beadSpacing/2.0) - 0.000001
 
         y = y0
         arcV = []
@@ -531,14 +539,14 @@ class AreaFill:
                 #poly.createLineNew( arcV, x, y, xL, xR, xLs, xRs, ds*pow(-1,i), dL, n, 1 )
                 poly.createLineNew1( lineV, y, xRange, ds*pow(-1,i), dL, n_tip, self.yScale )
                 self.findBoundaryNew( lineV, pos, arcV )
-                y = y - self.BSScale*poly.beadwidth
+                y = y - beadSpacing
                 if isLineFill :
                     y = y - h0
             else:
                 #x = self.startX( w0, xRange, [xL,xR], True )
                 poly.createLineNew1( lineV, y, xRange, ds*pow(-1,i), dL, n_tip, self.yScale )
                 self.findBoundaryNew( lineV, pos, arcV )
-                y = y - h0 - self.BSScale*poly.beadwidth
+                y = y - h0
 
             i = i+1
 
