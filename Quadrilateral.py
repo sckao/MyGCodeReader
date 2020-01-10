@@ -231,19 +231,23 @@ class Rectangle :
         w = self.width
         x = self.x0
         y = self.y0
+        stepY = ybw/abs(math.cos(phi))
+        dw = w%stepY
+        n = (w/stepY) -1
+        stepY = stepY + (dw/n)
 
         # Take shell thickness into consideration
         if self.shelled :
             d = self.length - (1*self.bw/abs(math.cos(phi)))
             w = self.width - (1*ybw/abs(math.cos(phi)))
             x = self.x0 + (0.5*self.bw*LR)
-            y = self.y0 + (ud*dy*0.5 )
+            y = self.y0 + ( ud*dy )
 
-        i = 0.
+        #i = 0.
         self.u.append( x )
         self.v.append( y )
-        stepY = ybw/abs(math.cos(phi))
-        while (w - (i*stepY) ) >= 0  :
+        for i in range( int(n) )  :
+        #while (w - (i*stepY) ) >= 0  :
 
             x = x + d*math.cos(phi)
             y = y + d*math.sin(phi)
@@ -254,7 +258,8 @@ class Rectangle :
             y = y + (ud*stepY )
             x = x
             phi = phi - ( math.pow(-1,i-1)*math.pi)
-            if (w - (i*stepY)) >=0 :
+            #if (w - (i*stepY)) >=0 :
+            if i < n-1 :
                 self.u.append( x )
                 self.v.append( y )
 
