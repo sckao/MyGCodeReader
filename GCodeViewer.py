@@ -1,4 +1,3 @@
-import numpy as np
 import matplotlib.pyplot as plt
 
 import math
@@ -224,7 +223,7 @@ def SetQuiver( ax, gV,  X0 = 0. , Y0 = 0. ) :
 def ShowPath( gV, xlimL = -5, xlimR = 355, ylimB = -5, ylimT = 305 ):
 
     # setup cavas
-    fig = plt.figure( figsize=(8,8) )
+    fig = plt.figure( figsize=(8,7) )
     fig.suptitle( 'G Code Path', fontsize=10, fontweight='bold')
 
     # one sub plot (x,y,index)
