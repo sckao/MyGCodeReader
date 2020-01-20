@@ -2,6 +2,7 @@ import math
 from PolygonFill import PolygonFill
 from PolygonFill import SolveLine
 from PolygonFill import Intersection
+from operator import itemgetter
 
 class AreaFill:
 
@@ -301,34 +302,72 @@ class AreaFill:
     # Find left and right boundary and their corresponding segments
     def findXBoundary(self, theY, pos):
 
-        x1 = 0.
-        x2 = 0.
+        xBlist = []
+        print( ' Find XBoundary for Y = %.2f' %(theY) )
+        for i in range( len(pos) )  :
+            j = i+1
+            if j == len(pos) :
+               j = 0
+            #print( ' y = %.2f , seg Y_i = %.2f , Y_i+1 = %.2f ' %( theY, pos[i][1], pos[i+1][1] ) )
+            if theY == pos[i][1] :
+                x = pos[i][0]
+                b = [x, i, j]
+                xBlist.append( b )
 
-        b1 = []
-        b2 = []
+            if theY < pos[i][1] and theY > pos[j][1] :
+                m = (pos[i][0] - pos[j][0]) / ( pos[i][1]-pos[j][1])
+                x = pos[i][0] - ( m*( pos[i][1] - theY ) )
+                b = [ x, i, j ]
+                xBlist.append( b )
+            if theY > pos[i][1] and theY < pos[j][1] :
+                m = (pos[j][0] - pos[i][0]) / ( pos[j][1]-pos[i][1])
+                x = pos[i][0] - ( m*( pos[i][1] - theY ) )
+                b = [ x, j, i ]
+                xBlist.append( b )
 
-        for i in range( len(pos)-1 )  :
 
-            if theY < pos[i][1] and theY > pos[i+1][1] :
-                x1 = pos[i][0] - ((pos[i][0] - pos[i+1][0])*( pos[i][1] - theY )/( pos[i][1]-pos[i+1][1]) )
-                b1 = [ x1, i, i+1 ]
-            if theY > pos[i][1] and theY < pos[i+1][1] :
-                x2 = pos[i][0] - ((pos[i][0] - pos[i+1][0])*( pos[i][1] - theY )/( pos[i][1]-pos[i+1][1]) )
-                b2 = [ x2, i+1, i ]
+        print( 'x boundary list size %d' %( len(xBlist) ) )
+        #if len(xBlist) == 1 :
+        #    for i in range( len(pos)-1 )  :
+        #        print( ' y = %.2f , seg Y_i = %.2f , Y_i+1 = %.2f ' %( theY, pos[i][1], pos[i+1][1] ) )
 
-            if x1 != 0. and x2 != 0 :
-                break
+        #print( ' X Boundary => at y = %.2f , x1: %.2f, x2: %.2f ' %( theY, x1, x2) )
 
-        #print( ' X Boundary => x1: %.2f, x2: %.2f ' %( x1, x2) )
+        xSortList = sorted( xBlist, key=itemgetter(0) )
 
-        if x1 < x2 :
-            return b1,b2
-        if x1 > x2 :
-            return b2,b1
-        else :
-            b1 = [0,-1,-1]
-            b2 = [0,-1,-1]
-            return b1, b2
+        return xSortList
+
+    # Finding Y boundary given the X
+    def findYBoundary(self, theX, pos):
+
+        yBlist = []
+        for i in range( len(pos) )  :
+            j = i+1
+            if j == len(pos) :
+                j = 0
+            if theX == pos[i][0]  :
+                y = pos[i][1]
+                b = [y, i, j]
+                yBlist.append( b )
+
+            if theX < pos[i][0] and theX > pos[j][0] :
+
+                m = (pos[i][1] - pos[j][1]) / (pos[i][0] - pos[j][0])
+                y = pos[j][1] +  m*( theX  - pos[j][0] )
+                b = [ y, i, j ]
+                yBlist.append( b )
+
+            if theX > pos[i][0] and theX < pos[j][0] :
+                m = (pos[j][1] - pos[i][1]) / (pos[j][0] - pos[i][0])
+                y = pos[i][1] +  m*( theX  - pos[i][0] )
+                b = [ y, j, i ]
+                yBlist.append( b )
+
+
+        #print( ' Y Boundary => y1: %.2f, y2: %.2f ' %( y1, y2) )
+        ySortList = sorted( yBlist, key=itemgetter(0) )
+
+        return ySortList
 
 
     # find intersection point from segment1 (s1,s2) and segment2(p1,p2)
@@ -364,15 +403,27 @@ class AreaFill:
         isInter = False
         for i in range( len(lineV) -1) :
 
-            b1, b2 = self.findXBoundary( lineV[i][1], posV )
-            b3, b4 = self.findXBoundary( lineV[i+1][1], posV )
+            blist12 = self.findXBoundary( lineV[i][1], posV )
+            blist34 = self.findXBoundary( lineV[i+1][1], posV )
             #print(' Line X(%.1f) , boundary( %.1f ~ %.1f) ' %( lineV[i][0], b1[0], b2[0] ) )
-            if b1[0] == 0  or b2[0] == 0 :
+            if len(blist12 ) != 2 :
+                print(' Found XBoundary Fail 12 ! (%d) ' %(len(blist12)) )
+                continue
+            if len(blist34 ) != 2 :
+                print(' Found XBoundary Fail 34 ! (%d) ' %(len(blist34)) )
+                continue
+
+            b1 = blist12[0]
+            b2 = blist12[1]
+            b3 = blist34[0]
+            b4 = blist34[1]
+
+            #if b1[0] == 0  or b2[0] == 0 :
                 #print(' Line Fail !!! ')
-                continue ;
-            if b3[0] == 0  or b4[0] == 0 :
+            #    continue ;
+            #if b3[0] == 0  or b4[0] == 0 :
                 #print(' Line Fail !!! ')
-                continue ;
+            #    continue ;
 
             if lineV[i][0] > b1[0] and lineV[i][0] < b2[0] :
                 fillV.append( lineV[i] )
@@ -482,7 +533,6 @@ class AreaFill:
 
     def FillArbitrary(self, pos, ds, dL, n, m):
 
-
         beadSpacing = self.BSScale*self.beadWidth
         poly = PolygonFill( )
 
@@ -554,5 +604,76 @@ class AreaFill:
         return arcV
 
 
+    # pos is the outline
+    def FillSpaceY(self, pos, deltaY = 0 ):
 
+        beadSpacing = (self.BSScale*self.beadWidth)
+        stepY = beadSpacing + deltaY
 
+        # Find the top,bottom, left and right range
+        top,bott,left,right = self.defineRange(pos)
+        print( 'Range top: %.2f , bott: %.2f, left: %.2f , right: %.2f' %(top[1], bott[1], left[0], right[0]))
+
+        # setup beadspacing
+        y0 = top[1] - stepY
+        dw = ( top[1] - bott[1] ) % stepY
+        n = (( top[1] - bott[1] ) / stepY) - 1
+        stepY = stepY + (dw/n)
+
+        y = y0
+        fillV = []
+        for i in range( int(n) ) :
+
+            xblist = self.findXBoundary( y , pos )
+            b1 = xblist[0]
+            b2 = xblist[1]
+            if i%2 == 0:
+                fillV.append( [ b1[0] + beadSpacing , y ] )
+                fillV.append( [ b2[0] - beadSpacing, y ] )
+            else :
+                fillV.append( [ b2[0] - beadSpacing, y ] )
+                fillV.append( [ b1[0] + beadSpacing, y ] )
+
+            y = y - stepY
+
+        return fillV
+
+    # Fill a space with vertical line ( x = k ~ X = k+n )
+    def FillSpaceX(self, pos, deltaX = 0 ):
+
+        beadSpacing = (self.BSScale*self.beadWidth)
+        stepX = beadSpacing + deltaX
+
+        # Find the top,bottom, left and right range
+        top,bott,left,right = self.defineRange(pos)
+        print( 'Range top: %.2f , bott: %.2f, left: %.2f , right: %.2f' %(top[1], bott[1], left[0], right[0]))
+
+        # setup beadspacing
+        dw = ( right[0] - left[0] ) % stepX
+        n = (( right[0] - left[0] ) / stepX) - 1
+        stepX = stepX + (dw/n)
+
+        x0 = left[0] + stepX
+        x = x0
+        fillV = []
+        for i in range( int(n) ) :
+
+            yblist = self.findYBoundary( x , pos )
+            if i%2 == 0:
+
+                for j in range( len(yblist) ) :
+                    p = +1
+                    if j%2 == 1 :
+                        p = -1
+                    fillV.append( [x, yblist[j][0] + (p*beadSpacing) ] )
+            else :
+                for j in range( len(yblist) ) :
+                    k = len(yblist) -1 - j
+                    p = -1
+                    if k%2 == 0 :
+                        p = 1
+                    fillV.append( [x, yblist[k][0] + (p*beadSpacing) ] )
+
+            x = x + stepX
+
+        return fillV

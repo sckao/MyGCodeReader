@@ -43,6 +43,7 @@ class ConcentricFill:
 
     # updown follow right hand rule
     # updown indicate the outline's direction, clockwise or counter-clockwise, using right-hand rule
+    # updown = True means counter-clockwise
     def findParallel(self, p1, p2, dr, updown = True ):
 
         #print(' p1=[%.2f, %.2f]  p2=[%.2f, %.2f] ' %(p1[0], p1[1], p2[0], p2[1] ) )
@@ -67,10 +68,10 @@ class ConcentricFill:
         # Found the offset centroid point
         # atan return angle between -pi/2 ~ pi/2
         theta = math.atan(m)
-        # dx will be always position
-        dx = dr*math.cos(theta)
+        # dx will be always positive
+        dx = abs(dr)*math.cos(theta)
         # dy has the same sign as tan
-        dy = dr*math.sin(theta)
+        dy = abs(dr)*math.sin(theta)
 
         xs1 = xc + dx
         ys1 = yc + dy
@@ -88,14 +89,43 @@ class ConcentricFill:
         axb =  (vx*dy - dx*vy )
 
 
-        if updown is False and axb < 0:
-            return [m0, b1, xs1, ys1]
-        if updown is False and axb > 0:
-            return [m0, b2, xs2, ys2]
-        if updown is True and axb < 0:
-            return [m0, b2, xs2, ys2]
-        if updown is True and axb > 0:
-            return [m0, b1, xs1, ys1]
+        #if updown is False and axb < 0:
+        #    return [m0, b1, xs1, ys1]
+        #if updown is False and axb > 0:
+        #    return [m0, b2, xs2, ys2]
+
+        #if updown is True and axb < 0:
+        #    return [m0, b2, xs2, ys2]
+        #if updown is True and axb > 0:
+        #    return [m0, b1, xs1, ys1]
+
+        # outline CCW and go outward
+        if updown is True and dr > 0 :
+            if axb < 0 :
+                return [m0, b1, xs1, ys1]
+            else :
+                return [m0, b2, xs2, ys2]
+
+        # outline CC and go inward
+        if updown is True and dr < 0:
+            if axb > 0 :
+                return [m0, b1, xs1, ys1]
+            else :
+                return [m0, b2, xs2, ys2]
+
+        # outline CW and go outward
+        if updown is False and dr > 0 :
+            if axb > 0 :
+                return [m0, b1, xs1, ys1]
+            else :
+                return [m0, b2, xs2, ys2]
+
+        # outline CW and go inward
+        if updown is False and dr < 0:
+            if axb < 0 :
+                return [m0, b1, xs1, ys1]
+            else :
+                return [m0, b2, xs2, ys2]
 
 
     def GetOutline(self, shapeV, dr,  updown = True ):

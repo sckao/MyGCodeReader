@@ -231,6 +231,7 @@ class Rectangle :
         w = self.width
         x = self.x0
         y = self.y0
+        # Even the Y steps through the whole y space
         stepY = ybw/abs(math.cos(phi))
         dw = w%stepY
         n = (w/stepY) -1
@@ -240,7 +241,7 @@ class Rectangle :
         if self.shelled :
             d = self.length - (1*self.bw/abs(math.cos(phi)))
             w = self.width - (1*ybw/abs(math.cos(phi)))
-            x = self.x0 + (0.5*self.bw*LR)
+            x = self.x0 + ( yScale*self.bw*LR)
             y = self.y0 + ( ud*dy )
 
         #i = 0.
@@ -271,17 +272,16 @@ class Rectangle :
         phi = self.phi
         LR = 1
         if math.cos(phi) < 0 : LR =  -1
-        dy = (self.bw/abs(math.cos(phi))) + LR*ud*(self.bw*abs(math.tan(phi)))
+        dy = (xScale*self.bw/abs(math.cos(phi))) + LR*ud*(self.bw*abs(math.tan(phi)))
 
         d = self.length
         w = self.width
         x = self.x0
         y = self.y0
-        #xbw = self.bw + addX_bw
         xbw = self.bw*xScale
         if self.shelled :
-            d = self.length - (2*xbw/abs(math.cos(phi)))
-            w = self.width - (2*self.bw/abs(math.cos(phi)))
+            d = self.length - (1*xbw/abs(math.cos(phi)))
+            w = self.width - (2*xScale*self.bw/abs(math.cos(phi)))
             x = self.x0 + (xbw*LR)
             y = self.y0 + (ud*dy )
 
@@ -290,6 +290,10 @@ class Rectangle :
             return
         else :
             r = abs(xbw / math.cos( phi ))
+            dd = d % r
+            n = (d/r) - 1
+            r = r + (dd/n)
+
 
         print( " step = %.5f " %(r) )
 
@@ -313,7 +317,8 @@ class Rectangle :
 
     def GetResult(self, zVal = 0, rx = [], ry= [], rz = [], rE = [], rs= [], retract = True ):
 
-        for i in range( len(self.u) ) :
+        sz = len(self.u)
+        for i in range( sz ) :
 
             # Calculate Eval
             prime_eval = 0.
@@ -349,7 +354,10 @@ class Rectangle :
 
                 rx.append( self.u[i] )
                 ry.append( self.v[i] )
-                rz.append( zVal )
+                if i == 1 or i == sz -1 :
+                    rz.append( zVal - self.ts )
+                else :
+                    rz.append( zVal )
                 rs.append( 1 )
                 rE.append( eval )
 
@@ -362,7 +370,8 @@ class Rectangle :
             rs.append( 2 )
             rE.append( retract_eval )
 
-    def Construct3D(self, rx =[], ry= [], rz = [] , rE = [], rS = [] ):
+    # fillType = 0 : xZigzag , 1: yZigzag
+    def Construct3D(self, rx =[], ry= [], rz = [] , rE = [], rS = [], fillType = 0, addShell = True ):
 
         #h = self.height
 
@@ -376,17 +385,19 @@ class Rectangle :
         #while h >= (i*self.bh ) :
         for i in range( self.nLayer ) :
 
-            self.AddShell( 1 )
-            self.GetResult( z, rx, ry, rz, rE, rS, False )
-            self.u = []
-            self.v = []
+            if addShell :
+                self.AddShell( 1 )
+                self.GetResult( z - self.ts, rx, ry, rz, rE, rS, False )
+                self.u = []
+                self.v = []
+
             print(' Layer %d = %.3f ' %(i,z ))
-            if i%2 == 3 :
+            if fillType == 1 :
                 self.YZigzagFill( 1, self.yBWscale )
                 self.GetResult( z, rx, ry, rz, rE, rS )
                 self.u = []
                 self.v = []
-            else :
+            if fillType == 0 :
                 self.XZigzagFill( 1, self.xBWscale )
                 self.GetResult( z, rx, ry, rz, rE, rS )
                 self.u = []
@@ -562,7 +573,7 @@ class Rectangle :
             #self.u = []
             #self.v = []
             print(' Layer %d = %.3f ' %(i,z ))
-            if i%2 == 2 :
+            if i%2 == 0 :
                 self.XZigzagFill( 1 )
                 self.GetResult( z, rx, ry, rz, rE, rS )
                 Ending( 10, rS,rx, ry, rz, rE )
