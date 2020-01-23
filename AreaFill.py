@@ -338,6 +338,7 @@ class AreaFill:
         return xSortList
 
     # Finding Y boundary given the X
+    # return a list of Y boundaries , [ y_position, segment i of outline, segment j of outline ]
     def findYBoundary(self, theX, pos):
 
         yBlist = []
@@ -605,10 +606,11 @@ class AreaFill:
 
 
     # pos is the outline
-    def FillSpaceY(self, pos, deltaY = 0 ):
+    def FillSpaceY(self, pos, deltaY = 0, deltaX = 0 ):
 
         beadSpacing = (self.BSScale*self.beadWidth)
         stepY = beadSpacing + deltaY
+        xGap = beadSpacing + deltaX
 
         # Find the top,bottom, left and right range
         top,bott,left,right = self.defineRange(pos)
@@ -628,31 +630,34 @@ class AreaFill:
             b1 = xblist[0]
             b2 = xblist[1]
             if i%2 == 0:
-                fillV.append( [ b1[0] + beadSpacing , y ] )
-                fillV.append( [ b2[0] - beadSpacing, y ] )
+                fillV.append( [ b1[0] + xGap , y ] )
+                fillV.append( [ b2[0] - xGap, y ] )
             else :
-                fillV.append( [ b2[0] - beadSpacing, y ] )
-                fillV.append( [ b1[0] + beadSpacing, y ] )
+                fillV.append( [ b2[0] - xGap, y ] )
+                fillV.append( [ b1[0] + xGap, y ] )
 
             y = y - stepY
 
         return fillV
 
     # Fill a space with vertical line ( x = k ~ X = k+n )
-    def FillSpaceX(self, pos, deltaX = 0 ):
+    def FillSpaceX(self, pos, deltaX = 0, deltaY = 0 ):
 
+        # Setup each x step
         beadSpacing = (self.BSScale*self.beadWidth)
         stepX = beadSpacing + deltaX
+        yGap = beadSpacing + deltaY
 
-        # Find the top,bottom, left and right range
+        # Find the top,bottom, left and right boundary
         top,bott,left,right = self.defineRange(pos)
         print( 'Range top: %.2f , bott: %.2f, left: %.2f , right: %.2f' %(top[1], bott[1], left[0], right[0]))
 
-        # setup beadspacing
+        # setup beadspacing - fine tune to evenly cover the whole X space
         dw = ( right[0] - left[0] ) % stepX
         n = (( right[0] - left[0] ) / stepX) - 1
         stepX = stepX + (dw/n)
 
+        # start filling - one x step from the outline
         x0 = left[0] + stepX
         x = x0
         fillV = []
@@ -661,18 +666,19 @@ class AreaFill:
             yblist = self.findYBoundary( x , pos )
             if i%2 == 0:
 
+                # go through all y boundaries
                 for j in range( len(yblist) ) :
-                    p = +1
+                    p = 1
                     if j%2 == 1 :
                         p = -1
-                    fillV.append( [x, yblist[j][0] + (p*beadSpacing) ] )
+                    fillV.append( [x, yblist[j][0] + (p*yGap) ] )
             else :
                 for j in range( len(yblist) ) :
                     k = len(yblist) -1 - j
                     p = -1
                     if k%2 == 0 :
                         p = 1
-                    fillV.append( [x, yblist[k][0] + (p*beadSpacing) ] )
+                    fillV.append( [x, yblist[k][0] + (p*yGap) ] )
 
             x = x + stepX
 
