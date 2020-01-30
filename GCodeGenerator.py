@@ -83,7 +83,10 @@ def Ending( flength, rs = [], rx = [], ry = [], rz = [], rE = [] ):
         j = j -1
 
 
-
+# Generate GCode based on given x,y,z position and extrusion E , status (retract or move or print)
+# Basic Functions : initTool, Generate, EndingGCode
+# Support Functions : setMixingRatio, shift, tipWipe,
+#
 class GCodeGenerator :
 
     # Linear density ( or Flow rate )
@@ -277,35 +280,49 @@ class GCodeGenerator :
         self.gfile.write('M83                            ; Relative extrusion mode\n')
 
     # At least 30 sec for each pause.
-    def tipWipe(self, pauseTime = 60.0, purgeE = 80, nextX = 50 , nextY = 50  ):
+    def tipWipe(self, pauseTime = 60.0 ):
 
         # Center of the drain cup
-        x0 = 360
+        x0 = 355
         y0 = 10
         # Distance between cup center to brush left edge
-        Lcb = 36
+        Lcb = 55
         # Brush Length
-        Lbrush = 35
+        Lbrush = 32
         # wiping range (between xL and xR)
-        xL = x0 -Lcb
+        xL = x0 - Lcb
         xR = xL - Lbrush
+        # Purge E value
+        purgeE = 80
+        # Purge distance
+        dX = 10
 
         # number of pause/drain cycle
         n = int ( pauseTime / 30)
-        if pauseTime%30 > 0 :
+        residualTime = pauseTime%30
+        if residualTime > 0 and n > 0 :
             n = n + 1
-
 
         self.gfile.write('; Pause and Flush tip \n')
         self.gfile.write('G0 Z35.000 F8000 \n')
         self.gfile.write('G0 Y%.3f F8000 \n' %(y0) )
         self.gfile.write('G0 X%.3f F8000 \n' %(x0) )
+        self.gfile.write('G4 S3.0                 ; Pause for (time) seconds \n')
+        self.gfile.write('G1 X%.3f E%.3f F8000 \n' %( (x0 - dX),  purgeE) )
         for i in range(n) :
-            self.gfile.write('G4 S30.0                 ; Pause for (time) seconds \n')
-            self.gfile.write('G1 E%.3f F8000 \n' %(purgeE) )
 
-        if n == 0 :
-            self.gfile.write('G1 E%.3f F8000 \n' %(purgeE) )
+            p = 0
+            if i%2 == 0 :
+                p = 1
+            if i%2 == 1 :
+                p = -1
+
+            self.gfile.write('G4 S30.0                 ; Pause for (time) seconds \n')
+            self.gfile.write('G1 X%.3f E%.3f F8000 \n' %( (x0 + p*dX), purgeE) )
+
+        if residualTime > 0 :
+            self.gfile.write('G4 S%.0f \n' %(residualTime) )
+            self.gfile.write('G1 X%.3f E%.3f F8000 \n' %( x0, purgeE) )
 
         self.gfile.write('G4 S3.0 \n')
         self.gfile.write('G0 X%.3f Y6.000 F8000 \n' %(xL))
@@ -314,7 +331,6 @@ class GCodeGenerator :
         self.gfile.write('G0 X%.3f Y6.000 F8000 \n' %(xL) )
         self.gfile.write('G0 X%.3f Y6.000 F8000 \n' %(xR) )
         self.gfile.write('G0 Z27.025 F8000 \n')
-        self.gfile.write('G0 X%.3f Y%.3f F8000 \n' %( nextX, nextY) )
 
 
     def initTool(self):
@@ -371,10 +387,18 @@ class GCodeGenerator :
             if self.rs[i] == 4 :
                 self.gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%.0f\n' %( xVal, yVal, zVal, eVal, gfVal2 ) )
 
+            if self.rs[i] == 5 :
+                self.gfile.write( '; move without extruding \n'  )
+                self.gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%0.0f\n' %( xVal, yVal, zVal, 0., fVal  ) )
+
             # This is the finishing segment, stop extruding and slow down to 25% of speed
             if self.rs[i] == 9 :
                 self.gfile.write( '; Ending section\n'  )
                 self.gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%.0f\n' %( xVal, yVal, zVal, eVal, fVal/4 ) )
+
+            if self.rs[i] == 99 :
+                purgetime = eVal
+                self.tipWipe( purgetime )
 
             if i == (nPoint -1) :
                 self.gfile.write('G1 E-5.000\n')

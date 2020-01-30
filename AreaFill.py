@@ -158,7 +158,6 @@ class AreaFill:
 
 
 
-
     def getPolygon(self, nside, iniPos, endPos, xc, yc):
 
         # Getting initial radius ri and ending radius rj
@@ -186,15 +185,112 @@ class AreaFill:
 
         return arcV
 
-    def getResult(self, pV , zVal=0, rs=[], rx=[], ry=[], rz=[], rE=[], retract=True):
+    # state = 99 which means purge and wipe
+    # use rE to store purge time
+    def doPurge(self, purgeTime = 5. , rs=[], rx=[], ry=[], rz=[], rE=[]  ):
 
+        rx.append( 355 )
+        ry.append(  0 )
+        rz.append( 35 )
+        rs.append( 99 )
+        rE.append( purgeTime )
+
+    def doRetract(self, p1, z1, p2, z2, connectV=[], rs=[], rx=[], ry=[], rz=[], rE=[] ):
+
+        prime_eval = 0.1
+        retract_eval = -3
+        shift_eval = -1
+
+        rx.append(p1[0])
+        ry.append(p1[1])
+        rz.append(z1 + self.rd )
+        rs.append(2)
+        rE.append(retract_eval)
+
+        for i in range( len(connectV) ) :
+            rx.append( connectV[i][0])
+            ry.append( connectV[i][1])
+            rz.append(z1 + self.rd)
+            rs.append(0)
+            rE.append(shift_eval)
+
+        rx.append(p2[0])
+        ry.append(p2[1])
+        rz.append(z2 + self.rd)
+        rs.append(0)
+        rE.append(shift_eval)
+
+        rx.append(p2[0])
+        ry.append(p2[1])
+        rz.append(z2)
+        rs.append(-2)
+        rE.append(prime_eval)
+
+    def getGcode(self, pV , zVal=0, rs=[], rx=[], ry=[], rz=[], rE=[], stat = 1):
+
+        # deltaZ for starting
+        deltaZ = 0.15
+        rampL = 5
+        zH = zVal
+
+        printL = 0
+        for i in range(len(pV)):
+
+            if i == 0:
+
+                if stat == 1 :
+                    zH = zVal - deltaZ
+                else :
+                    zH = zVal
+                rx.append(pV[i][0])
+                ry.append(pV[i][1])
+                rz.append(zH)
+                rs.append(0)
+                rE.append(0)
+            else:
+                dx = pV[i][0] - pV[i - 1][0]
+                dy = pV[i][1] - pV[i - 1][1]
+                dL = math.sqrt((dx * dx) + (dy * dy))
+                dt = dL / self.Fval
+                eval = self.Eval * dt
+                # a hack to set eval to 0 for intermediate point
+                if len(pV[i]) > 2 and pV[i][2] == 0 :
+                    eval = 0
+
+                printL += dL
+                if printL < 5 and stat != 5 :
+                    zH = zH + (deltaZ*printL/rampL)
+                    if zH > zVal :
+                        zH = zVal
+                else :
+                    zH = zVal
+
+                rx.append( pV[i][0] )
+                ry.append( pV[i][1] )
+                rz.append(zH)
+                rs.append(stat)
+                rE.append(eval)
+
+
+
+    def getResult(self, pV , zVal=0, rs=[], rx=[], ry=[], rz=[], rE=[], retract=True, stat = 1):
+
+        # deltaZ for starting
+        deltaZ = 0.15
+        rampL = 5
+        zH = zVal
+
+        printL = 0
         for i in range(len(pV)):
 
             # Calculate Eval
             prime_eval = 0.1
             retract_eval = -3
             shift_eval = -1
+
             if i == 0:
+
+                zH = zVal - deltaZ
 
                 if retract:
                     rx.append(pV[i][0])
@@ -205,13 +301,13 @@ class AreaFill:
 
                     rx.append(pV[i][0])
                     ry.append(pV[i][1])
-                    rz.append(zVal)
+                    rz.append(zH)
                     rs.append(-2)
                     rE.append(prime_eval)
                 else:
                     rx.append(pV[i][0])
                     ry.append(pV[i][1])
-                    rz.append(zVal)
+                    rz.append(zH)
                     rs.append(0)
                     rE.append(shift_eval)
 
@@ -219,19 +315,28 @@ class AreaFill:
             else:
                 dx = pV[i][0] - pV[i - 1][0]
                 dy = pV[i][1] - pV[i - 1][1]
-                dt = math.sqrt((dx * dx) + (dy * dy)) / self.Fval
+                dL = math.sqrt((dx * dx) + (dy * dy))
+                dt = dL / self.Fval
                 eval = self.Eval * dt
                 # a hack to set eval to 0 for intermediate point
                 if len(pV[i]) > 2 and pV[i][2] == 0 :
                     eval = 0
 
+                printL += dL
+                if printL < 5 :
+                    zH = zH + (deltaZ*printL/rampL)
+                    if zH > zVal :
+                        zH = zVal
+                else :
+                    zH = zVal
+
                 rx.append( pV[i][0] )
                 ry.append( pV[i][1] )
-                rz.append(zVal)
-                rs.append(1)
+                rz.append(zH)
+                rs.append(stat)
                 rE.append(eval)
 
-            i = i + 1
+            #i = i + 1
 
         if retract and len(pV) > 0 :
             rx.append( pV[ -1][0] )
