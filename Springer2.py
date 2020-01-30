@@ -7,29 +7,6 @@ from Quadrilateral import Rectangle
 from ConcentricFill import ConcentricFill
 from ModelMotion import *
 
-def BreakSegment( vec , Lcut = 40 ) :
-
-    nStep = 20
-    for i in range( len(vec) ) :
-
-        if i == len(vec) -1 :
-            j = 0
-        else :
-            j = i+1
-
-        L = length( vec[i], vec[j] )
-        if L >  Lcut :
-            xStep = (vec[j][0] - vec[i][0]) / nStep
-            m = (vec[j][1] - vec[i][1]) / (vec[j][0] - vec[i][0])
-            print(' P(%d) = (%.2f, %.2f' %(i, vec[i][0], vec[i][1]) )
-            print(' P(%d) = (%.2f, %.2f' %(j, vec[j][0], vec[j][1]) )
-
-            for k in range( nStep ) :
-                y = (m*xStep*(k+1)) +  vec[i][1]
-                x = vec[i][0] + (xStep*(k+1))
-                print(' insert (%d) x,y = %.2f, %.2f' %(i+k+1, x,y) )
-                vec.insert( i+1+k, [x,y] )
-
 def SplitOutline( outlnV, yCut ) :
 
     outlnU0 = []
@@ -76,9 +53,8 @@ rE = []
 shapeV = ReadOutline( 'InsertOutline.gcode', -60, 300, -0.5*math.pi )
 #shapeV1 = ReadOutline( 'InsertOutline1.gcode', -50, 200, -0.5*math.pi )
 shapeV2 = ReadOutline( 'InsertOutline2.gcode', -60, 300, -0.5*math.pi )
-#shapeV1 = ReadOutline( 'InsertOutline1s.gcode', -60, 300, -0.5*math.pi )
 shapeV1_0 = ReadOutline( 'InsertOutline1c.gcode', -60, 408, -0.5*math.pi )
-shapeV1 = rotateList( shapeV1_0, 30 )
+shapeV1 = rotateList( shapeV1_0, 25 )
 
 
 # 2. Get skirt of the print and outline of pattern2
@@ -164,7 +140,7 @@ bottomV = cl.FillSpaceX( shapeD, 0, -0.2 )
 
 # This is connecting path, avoiding drooling
 move1 = [ [30,220], [20,220] ]
-move2 = [ [65,160], [175,160], [175,195] ]
+move2 = [ [65,130], [185,130] ]
 move3 = [ [285,184], [285,130], [21,130] ]
 move4 = [ [285,185], [285,130], [21,130] ]
 # This is smoothing block for starting
@@ -182,7 +158,7 @@ dz = rcp.bh
 zz = z0
 
 # Output the skirt or shape outline
-cl.getResult(skirtV, zz, rs, rx, ry, rz, rE, False)
+cl.getGcode(skirtV, zz, rs, rx, ry, rz, rE)
 # this is just to make the skirt or outline to other color
 #for i in range(len(rs)) :
 #    rs[i]  = 2
@@ -190,13 +166,15 @@ cl.getResult(skirtV, zz, rs, rx, ry, rz, rE, False)
 for i in range( nSlice ) :
     print( ' z = %.3f ' %( zz ))
     # z = 0.8
-    cl.getResult(shapeV, zz, rs, rx, ry, rz, rE, False)
-    cl.getResult(move1, zz, rs, rx, ry, rz, rE, False, 5 )
+    cl.getGcode(shapeV, zz, rs, rx, ry, rz, rE)
+    cl.getGcode(move1, zz, rs, rx, ry, rz, rE, 5 )
     zz = zz + 0.3
     # z = 1.1
-    cl.getResult(dBlock, zz, rs, rx, ry, rz, rE, False)
-    cl.getResult(uBlock, zz, rs, rx, ry, rz, rE, False)
-    cl.getResult(baseV, zz, rs, rx, ry, rz, rE, False)
+    cl.getGcode(dBlock, zz, rs, rx, ry, rz, rE)
+    cl.getGcode(uBlock, zz, rs, rx, ry, rz, rE)
+    cl.getGcode(baseV, zz, rs, rx, ry, rz, rE)
+    # Need Tip wipes
+    cl.doPurge(5., rs, rx, ry, rz, rE)
     zz = zz + dz
 
 
@@ -205,27 +183,31 @@ for i in range( int(nGLayer) ) :
     # Polygon Fill
     print( ' z = %.3f ' %( zz ))
     # z = 1.6
-    #cl.getResult(shapeV2, zz, rs, rx, ry, rz, rE, True)
-    cl.getResult(arcV2, zz, rs, rx, ry, rz, rE, True)
-    cl.getResult(move2, zz, rs, rx, ry, rz, rE, True, 5 )
+    #cl.getGcode(shapeV2, zz, rs, rx, ry, rz, rE)
+    cl.getGcode(arcV2, zz, rs, rx, ry, rz, rE)
+    cl.doRetract( arcV2[-1], zz, shapeV1[0], zz, move2,  rs, rx, ry, rz, rE,)
+    #cl.getGcode(move2, zz, rs, rx, ry, rz, rE, 5 )
 
-    cl.getResult(shapeV1, zz, rs, rx, ry, rz, rE, False)
-    cl.getResult(arcV1, zz, rs, rx, ry, rz, rE, True)
-    #cl.getResult(shapeV1a, zz, rs, rx, ry, rz, rE, False)
-    #cl.getResult(shapeV1b, zz, rs, rx, ry, rz, rE, False)
-    #cl.getResult(shapeV1c, zz, rs, rx, ry, rz, rE, False)
+    cl.getGcode(shapeV1, zz, rs, rx, ry, rz, rE)
+    cl.getGcode(arcV1, zz, rs, rx, ry, rz, rE)
+    #cl.getGcode(shapeV1a, zz, rs, rx, ry, rz, rE)
+    #cl.getGcode(shapeV1b, zz, rs, rx, ry, rz, rE)
+    #cl.getGcode(shapeV1c, zz, rs, rx, ry, rz, rE)
 
-    cl.getResult(shapeU, zz, rs, rx, ry, rz, rE, False)
-    cl.getResult(shapeD, zz, rs, rx, ry, rz, rE, False)
-    cl.getResult(move3, zz, rs, rx, ry, rz, rE, True, 5 )
+    cl.getGcode(shapeU, zz, rs, rx, ry, rz, rE)
+    cl.getGcode(shapeD, zz, rs, rx, ry, rz, rE)
+    cl.doRetract( shapeD[-1], zz, uBlock[0], zz+0.35, move3,  rs, rx, ry, rz, rE,)
+    #cl.getGcode(move3, zz, rs, rx, ry, rz, rE, 5 )
 
     zz = zz + 0.35
     # z = 1.95
-    cl.getResult(uBlock, zz, rs, rx, ry, rz, rE, False)
-    cl.getResult(upperV, zz, rs, rx, ry, rz, rE, True)
-    cl.getResult(move4, zz, rs, rx, ry, rz, rE, True, 5 )
-    cl.getResult(dBlock, zz, rs, rx, ry, rz, rE, False)
-    cl.getResult(bottomV, zz, rs, rx, ry, rz, rE, True)
+    cl.getGcode(uBlock, zz, rs, rx, ry, rz, rE )
+    cl.getGcode(upperV, zz, rs, rx, ry, rz, rE )
+    cl.doRetract( upperV[-1], zz, [281.75, 10], zz, [],  rs, rx, ry, rz, rE,)
+    cl.doPurge(5., rs, rx, ry, rz, rE)
+    #cl.getGcode(move4, zz, rs, rx, ry, rz, rE, 5 )
+    cl.getGcode(dBlock, zz, rs, rx, ry, rz, rE )
+    cl.getGcode(bottomV, zz, rs, rx, ry, rz, rE )
     zz = zz + dz
 
 gc = GCodeGenerator( rs, rx, ry, rz, rE, rcp.Fval, rcp.rho )
