@@ -30,6 +30,25 @@ def zoom( pos, scale ) :
     pos[0] = x
     pos[1] = y
 
+# flip g code w.r.t. a Y-axis
+def flipY( pos , sx =0 , sy = 0, theta = 0) :
+
+    imgV = []
+    for i in range( len(pos) ) :
+
+        x = pos[i][0]
+        y = pos[i][1]
+
+        xi = -1*x
+        yi = y
+
+        xr = xi*math.cos(theta) - yi*math.sin(theta)
+        yr = xi*math.sin(theta) + yi*math.cos(theta)
+
+        imgV.append( [xr + sx ,yr + sy ] )
+
+    return imgV
+
 def length( p1, p2 ) :
 
     dx = p2[0] - p1[0]
@@ -43,10 +62,21 @@ def shift( pos, dx, dy ) :
      pos[0] = pos[0] + dx
      pos[1] = pos[1] + dy
 
+# rotate an outline
 def rotateList( vec, n ) :
 
-    return vec[n:] + vec[:n]
+    vec1 = []
+    if vec[0] == vec[-1] :
+        del vec[-1]
+        vec1 = vec[n:] + vec[:n]
+        vec1.append( vec1[0] )
+    else :
+        vec1 = vec[n:] + vec[:n]
 
+    return vec1
+
+# This is the method to re-sort the sequence of a list based on the position of the empty element
+# The list must has been insert an empty element [] for indication , the empty element will be removed after resort
 def ReSort( vec ) :
 
     k = 0
@@ -56,6 +86,7 @@ def ReSort( vec ) :
             k = i
             break
 
+    del vec[k]
     vec1 = rotateList(vec, k)
 
     #for it in vec1 :
@@ -80,7 +111,7 @@ def turnAngle( p1, p2, p3 ) :
     L32 = length( p3, p2 )
 
     cosA = axb / (L21*L32)
-    print(' cosA = %.2f' %(cosA) )
+    #print(' cosA = %.3f' %(cosA) )
     if cosA == -1 :
         angle = math.pi
     else :
@@ -139,6 +170,7 @@ def Reduce( v, smin = 0.05 ) :
     print( ' --- to %d ' %( len(v)) )
 
 # Read outline from a gcode
+# Remove duplicated x,y position
 def ReadOutline( fileName, sx, sy, theta  ) :
     # Read GCode File
 
@@ -179,10 +211,16 @@ def ReadOutline( fileName, sx, sy, theta  ) :
             xj = pos[0]
             yj = pos[1]
 
+            sameXY = False
+            if len(v) > 0 :
+                if v[-1][0] == xj and v[-1][1] == yj :
+                    sameXY = True
+
+            if len(v) < 1 or sameXY is False :
+                v.append([xj, yj])
 
             #print(' shape [%d] (%.2f, %.2f)' %(i, xj, yj) )
-            v.append([xj, yj])
-            i = i+1
+            #i = i+1
 
 
     if len(v) > 0 :
