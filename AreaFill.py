@@ -226,7 +226,7 @@ class AreaFill:
         rs.append(-2)
         rE.append(prime_eval)
 
-    def getGcode(self, pV , zVal=0, rs=[], rx=[], ry=[], rz=[], rE=[], stat = 1):
+    def getGcode(self, pV , zVal=0, rs=[], rx=[], ry=[], rz=[], rE=[], stat = 1, slope = True ):
 
         # deltaZ for starting
         deltaZ = 0.15
@@ -238,7 +238,7 @@ class AreaFill:
 
             if i == 0:
 
-                if stat == 1 :
+                if stat == 1 and slope is True :
                     zH = zVal - deltaZ
                 else :
                     zH = zVal
@@ -258,7 +258,7 @@ class AreaFill:
                     eval = 0
 
                 printL += dL
-                if printL < 5 and stat != 5 :
+                if printL < 5 and stat != 5 and slope is True :
                     zH = zH + (deltaZ*printL/rampL)
                     if zH > zVal :
                         zH = zVal
@@ -405,6 +405,7 @@ class AreaFill:
        return xL, xR, xLs, xRs
 
     # Find left and right boundary and their corresponding segments
+    # return a list of X boundaries , [ x_position, segment i of outline, segment j of outline ]
     def findXBoundary(self, theY, pos):
 
         xBlist = []
@@ -442,7 +443,7 @@ class AreaFill:
 
         return xSortList
 
-    # Finding Y boundary given the X
+    # Given the X, finding Y boundary and the crossing segment
     # return a list of Y boundaries , [ y_position, segment i of outline, segment j of outline ]
     def findYBoundary(self, theX, pos):
 
@@ -711,7 +712,9 @@ class AreaFill:
 
 
     # pos is the outline
-    def FillSpaceY(self, pos, deltaY = 0, deltaX = 0 ):
+    # UD : True -> From Top, False : From Bottom to top
+    # LR : True -> From left to right first , False : From right to left first
+    def FillSpaceY(self, pos, deltaY = 0, deltaX = 0, UD = True, LR = True  ):
 
         beadSpacing = (self.BSScale*self.beadWidth)
         stepY = beadSpacing + deltaY
@@ -722,10 +725,15 @@ class AreaFill:
         print( 'Range top: %.2f , bott: %.2f, left: %.2f , right: %.2f' %(top[1], bott[1], left[0], right[0]))
 
         # setup beadspacing
-        y0 = top[1] - stepY
         dw = ( top[1] - bott[1] ) % stepY
         n = (( top[1] - bott[1] ) / stepY) - 1
         stepY = stepY + (dw/n)
+
+        # setup the starting Y position
+        y0 = top[1] - stepY
+        if UD is False :
+            y0 = bott[1] + stepY
+            stepY = -1*stepY
 
         y = y0
         fillV = []
@@ -735,18 +743,30 @@ class AreaFill:
             b1 = xblist[0]
             b2 = xblist[1]
             if i%2 == 0:
-                fillV.append( [ b1[0] + xGap , y ] )
-                fillV.append( [ b2[0] - xGap, y ] )
+                if LR is True :
+                    fillV.append( [ b1[0] + xGap , y ] )
+                    fillV.append( [ b2[0] - xGap, y ] )
+                else :
+                    fillV.append( [ b2[0] - xGap, y ] )
+                    fillV.append( [ b1[0] + xGap, y ] )
+
             else :
-                fillV.append( [ b2[0] - xGap, y ] )
-                fillV.append( [ b1[0] + xGap, y ] )
+                if LR is True :
+                    fillV.append( [ b2[0] - xGap, y ] )
+                    fillV.append( [ b1[0] + xGap, y ] )
+                else :
+                    fillV.append( [ b1[0] + xGap , y ] )
+                    fillV.append( [ b2[0] - xGap, y ] )
+
 
             y = y - stepY
 
         return fillV
 
     # Fill a space with vertical line ( x = k ~ X = k+n )
-    def FillSpaceX(self, pos, deltaX = 0, deltaY = 0 ):
+    # LR : True -> From left , False : From right
+    # UD : True -> From Top to bottom first, False : From Bottom to top first
+    def FillSpaceX(self, pos,  deltaX = 0, deltaY = 0, LR = True , UD = False ):
 
         # Setup each x step
         beadSpacing = (self.BSScale*self.beadWidth)
@@ -764,11 +784,35 @@ class AreaFill:
 
         # start filling - one x step from the outline
         x0 = left[0] + stepX
+        if LR is False :
+            x0 = right[0] - stepX
+            stepX = -1*stepX
+
         x = x0
         fillV = []
         for i in range( int(n) ) :
 
+            # finding the y boundary and the corresponding outline segment
+            # the list is sorted from small y value to large y value
             yblist = self.findYBoundary( x , pos )
+
+            if i%2 == 0 :
+                if UD is True :
+                    fillV.append( [x, yblist[1][0] + (-1*yGap) ] )
+                    fillV.append( [x, yblist[0][0] + (yGap) ] )
+                if UD is False :
+                    fillV.append( [x, yblist[0][0] + (yGap) ] )
+                    fillV.append( [x, yblist[1][0] + (-1*yGap) ] )
+            else :
+                if UD is True :
+                    fillV.append( [x, yblist[0][0] + (yGap) ] )
+                    fillV.append( [x, yblist[1][0] + (-1*yGap) ] )
+                if UD is False :
+                    fillV.append( [x, yblist[1][0] + (-1*yGap) ] )
+                    fillV.append( [x, yblist[0][0] + (yGap) ] )
+
+
+            '''
             if i%2 == 0:
 
                 # go through all y boundaries
@@ -784,7 +828,7 @@ class AreaFill:
                     if k%2 == 0 :
                         p = 1
                     fillV.append( [x, yblist[k][0] + (p*yGap) ] )
-
+            '''
             x = x + stepX
 
         return fillV
