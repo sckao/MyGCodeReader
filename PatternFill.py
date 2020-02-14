@@ -1,5 +1,7 @@
 import math
 import numpy as np
+from ModelMotion import rotation
+from ConcentricFill import ConcentricFill
 
 # http://www.dcs.gla.ac.uk/~pat/52233/slides/Geometry1x1.pdf
 
@@ -16,12 +18,14 @@ class PatternFill :
 
         self.bw = bw
         self.bsScale = bsscale
+        self.bs = self.bw*self.bsScale
 
     # providing shapes from left to right
     # n: number of point in upper/bottom half, radius, dL : spacing
     # flip : upper or bottom half of the polygon
+    # phi is rotation angle in CCW
     # return points
-    def unitPolygon(self, n, r, dL, x0, y0, flip = False ) :
+    def unitPolygon(self, n, r, dL, x0, y0, flip = False, phi = 0 ) :
 
         pattern = []
         dA = math.pi / (n+1)
@@ -30,17 +34,21 @@ class PatternFill :
         x = x0
         y = y0
         for i in range(n+2) :
-            dx = r*math.cos( theta )
-            dy = r*math.sin( theta )
-            x = x0 + dx
+            dx0 = r*math.cos( theta )
+            dy0 = r*math.sin( theta )
             if flip is True :
-                y = y0 - dy
-            else :
-                y = y0 + dy
+                dy0 = -1*dy0
+
+            dx, dy = rotation( [dx0, dy0] , phi)
+
+            x = x0 + dx
+            y = y0 + dy
             pattern.append( [x,y] )
             theta = theta - dA
 
-        pattern.append( [x+dL, y0] )
+        tx, ty = rotation( [r+dL, 0], phi)
+        #pattern.append( [x+dL, y0] )
+        pattern.append( [x0+tx, y0+ty ] )
         return pattern
 
     def unitSquare(self, h, w, dL, x0, y0):
@@ -128,9 +136,10 @@ class PatternFill :
                 else :
                     b1 = self.unitPolygon( m, r, dL, x, y, True )
                     b1.reverse()
-                    arcs = arcs + b1
                     if i < nX-1 :
+                        del b1[-1]
                         x = x - dx
+                    arcs = arcs + b1
 
             if j%2 == 0 :
                 y = y - self.bs
@@ -138,6 +147,80 @@ class PatternFill :
                 y = y - dy
 
         return arcs
+
+    # BL : bottom-left position, TR : top-right position
+    def createPatternX(self, BL, TR, n, m, r, dL, LR = True, UD = True  ):
+
+        L = TR[0] - BL[0]
+        H = TR[1] - BL[1]
+
+        # This is the width and height when contructing polygon in 0 degree rotation
+        # for the pattens lay vertically, the rotation angle is -pi/2
+        w0, h0 = self.unitPolygonSize( n, m, r, dL )
+        h1 = h0 + self.bs
+
+        # Partition the space
+        nX = int(L*2 / h1) + 1
+        nY = int(H / w0) + 2
+        print(' nX = %d , nY = %d' %(nX, nY) )
+
+        # setup starting point and angle
+        phi = math.pi/-2
+        y = TR[1] - r
+        dy = (2*r) + dL
+        if UD is False :
+            phi = math.pi/2
+            y = BL[1] + r
+            dy = (-2*r) - dL
+
+        x = BL[0] + (h0/2)
+        if LR is False :
+            x = TR[0] - (h0/2)
+
+        # setup the dx base on the rounting
+        dx1 = h1
+        dx2 = self.bs
+        if LR is False and UD is True :
+            dx1 = -1*self.bs
+            dx2 = -1*h1
+        if LR is True and UD is False :
+            dx1 = self.bs
+            dx2 = h1
+        if LR is True and UD is True :
+            dx1 = h1
+            dx2 = self.bs
+        if LR is False and UD is False :
+            dx1 = -1*h1
+            dx2 = -1*self.bs
+
+
+        arcs = []
+        for j in range( nX ) :
+
+            for i in range( nY ) :
+
+                if j%2 == 0 :
+                    u1 = self.unitPolygon( n, r, dL, x, y, False, phi  )
+                    if i < nY-1 :
+                        del u1[-1]
+                        y = y - dy
+                    arcs = arcs + u1
+                else :
+                    b1 = self.unitPolygon( m, r, dL, x, y, True, phi )
+                    b1.reverse()
+                    if i < nY-1 :
+                        del b1[-1]
+                        y = y + dy
+
+                    arcs = arcs + b1
+
+            if j%2 == 0 :
+                x = x + dx1
+            else :
+                x = x + dx2
+
+        return arcs
+
 
 
     # if val == 0  -> colinear and r is between p and q
@@ -309,9 +392,34 @@ class PatternFill :
         #print( TR )
         #print( BL )
 
+        # create the cutting boundary for filterPattern
+        #cf = ConcentricFill()
+        #cutb = cf.GetOutline( pos, -1*self.bs, False )
+
         arcs = self.createPattern( BL, TR, n, m, r, dL )
         print( ' len of arcs : %d' %( len(arcs) ) )
         patt = self.filterPattern( arcs, pos )
         print( ' len of patt : %d' %( len(patt) ) )
 
         return patt
+        #return arcs
+
+
+    def fillSpaceX(self, pos , n, m, r, dL, sx = 0, sy = 0  ):
+
+        top, bott, left, right = self.findRange(pos)
+
+        TR = [ right[0]+sx, top[1]+sy ]
+        BL = [ left[0]+sx, bott[1]+sy ]
+
+        # create the cutting boundary for filterPattern
+        #cf = ConcentricFill()
+        #cutb = cf.GetOutline( pos, -1*self.bs, False )
+
+        arcs = self.createPatternX( BL, TR, n, m, r, dL, False, True )
+        print( ' len of arcs : %d' %( len(arcs) ) )
+        patt = self.filterPattern( arcs, pos )
+        print( ' len of patt : %d' %( len(patt) ) )
+
+        return patt
+        #return arcs
