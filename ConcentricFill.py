@@ -1,5 +1,6 @@
 import math
 import numpy as np
+from ModelMotion import *
 
 # Solve slope (m) and intercept(d) given two points (x1, y1) , (x2, y2)
 #    y = mx + d
@@ -44,6 +45,7 @@ class ConcentricFill:
     # updown follow right hand rule
     # updown indicate the outline's direction, clockwise or counter-clockwise, using right-hand rule
     # updown = True means counter-clockwise
+    # p2 -> i+1 , p1 -> i
     def findParallel(self, p1, p2, dr, updown = True ):
 
         #print(' p1=[%.2f, %.2f]  p2=[%.2f, %.2f] ' %(p1[0], p1[1], p2[0], p2[1] ) )
@@ -52,17 +54,25 @@ class ConcentricFill:
             print('Find Parallel Fail !!')
             return []
 
-        # Solve line - need to consider the solution for vertical & horizontal lines
+        ## Solve line - need to consider the solution for vertical & horizontal lines
+        # slope for this segment
         m0 = 999999999
-        m = 999999999
+        # slope for the orthogonal line
+        m  = 999999999
         xc = (p1[0] + p2[0])/2
         yc = (p1[1] + p2[1])/2
         if p2[0] != p1[0] :
             m0 = (p2[1] - p1[1]) / (p2[0] - p1[0])
             if m0 != 0 :
                 m = -1/m0
+            #else :
+            #    return [ 0, yc+dr, xc, yc+dr ]
         else :
             m = 0
+            #xs1 = xc + dr
+            #ys1 = yc
+            #return [ m0, xc*m0 , xs1, ys1]
+
 
 
         # Found the offset centroid point
@@ -73,61 +83,67 @@ class ConcentricFill:
         # dy has the same sign as tan
         dy = abs(dr)*math.sin(theta)
 
+        # two possibilities
         xs1 = xc + dx
         ys1 = yc + dy
+        if m0 >= 999999998. :
+            xs1 = xc + dr
+            ys1 = yc
         b1 =  ys1 - (m0*xs1)
 
         xs2 = xc - dx
         ys2 = yc - dy
+        if m0 >= 999999998. :
+            xs2 = xc - dr
+            ys2 = yc
         b2 =  ys2 - (m0*xs2)
 
         # Calculate cross-product - use cross-product to determine the point is inside/outside the shape
         # vector 1 from the shape
         vx = p2[0] - p1[0]
         vy = p2[1] - p1[1]
+        ux1 = xs1 - p1[0]
+        uy1 = ys1 - p1[1]
+        #ux2 = xs2 - p1[0]
+        #uy2 = ys2 - p1[1]
         # vector 2 from the orthogonal vector
-        axb =  (vx*dy - dx*vy )
+        #axb =  (vx*dy - dx*vy )
+        axb1 =  (vx*uy1 - ux1*vy )
+        #axb2 =  (vx*uy2 - ux2*vy )
 
-
-        #if updown is False and axb < 0:
-        #    return [m0, b1, xs1, ys1]
-        #if updown is False and axb > 0:
-        #    return [m0, b2, xs2, ys2]
-
-        #if updown is True and axb < 0:
-        #    return [m0, b2, xs2, ys2]
-        #if updown is True and axb > 0:
-        #    return [m0, b1, xs1, ys1]
 
         # outline CCW and go outward
         if updown is True and dr > 0 :
-            if axb < 0 :
+            if axb1 < 0 :
                 return [m0, b1, xs1, ys1]
             else :
                 return [m0, b2, xs2, ys2]
 
-        # outline CC and go inward
+        # outline CCW and go inward
         if updown is True and dr < 0:
-            if axb > 0 :
+            if axb1 > 0 :
                 return [m0, b1, xs1, ys1]
             else :
                 return [m0, b2, xs2, ys2]
 
         # outline CW and go outward
         if updown is False and dr > 0 :
-            if axb > 0 :
+            if axb1 > 0 :
                 return [m0, b1, xs1, ys1]
             else :
                 return [m0, b2, xs2, ys2]
 
         # outline CW and go inward
         if updown is False and dr < 0:
-            if axb < 0 :
+            if axb1 < 0 :
                 return [m0, b1, xs1, ys1]
             else :
                 return [m0, b2, xs2, ys2]
 
 
+    # updown follow right hand rule
+    # updown indicate the outline's direction, clockwise or counter-clockwise, using right-hand rule
+    # updown = True means counter-clockwise
     def GetOutline(self, shapeV, dr,  updown = True ):
 
         newOutline = []
@@ -139,19 +155,48 @@ class ConcentricFill:
                 j = 0
 
             if shapeV[i][0] == shapeV[j][0] and shapeV[i][1] == shapeV[j][1] :
+                print(' skip duplicated point (%d) to [%d] !! ' %(i, j))
                 continue
             if shapeV[i][0] == shapeV[i-1][0] and shapeV[i][1] == shapeV[i-1][1] :
+                print(' skip duplicated point (%d) !! ' %(i) )
                 continue
+
 
             pln1 = self.findParallel( shapeV[i-1], shapeV[i], dr, updown )
             pln2 = self.findParallel(   shapeV[i], shapeV[j], dr, updown )
             #print(' (%d) , sz1= %d , sz2= %d ' %(i, len(pln1), len(pln2) ) )
             if len(pln1) < 1 or len(pln2) < 1 :
+                print(' find parallel line fail !! ' )
                 continue
 
             xs, ys = Intersection( pln1[0], pln1[1], pln2[0], pln2[1] )
-            print( '(%d) m1: (%.2f, %.2f) , m2: (%.2f, %.2f) => %.2f, %.2f ' %(i, pln1[0], pln1[1], pln2[0], pln2[1], xs, ys ))
-            newOutline.append( [xs,ys] )
+            #print( '(%d) m1: (%.2f, %.2f) , m2: (%.2f, %.2f) => %.2f, %.2f ' %(i, pln1[0], pln1[1], pln2[0], pln2[1], xs, ys ))
+            if pln1[0] == pln2[0] :
+                print('->  m = %.2f + %.2f , (%.2f, %.2f) ' %(pln1[0], pln1[1], pln1[2], pln1[3]))
+                print('    m = %.2f + %.2f , (%.2f, %.2f) ' %(pln2[0], pln2[1], pln2[2], pln2[3]))
+                L12 = length( shapeV[i-1], shapeV[i] )
+                L23 = length( shapeV[i], shapeV[j] )
+                L13 = L12 + L23
+                r12 = L12/L13
+                xs = pln1[2] + (pln2[2] - pln1[2])*r12
+                ys = pln1[3] + (pln2[3] - pln1[3])*r12
+
+
+            skip = False
+            if len(newOutline) < 1 or skip is True :
+                newOutline.append( [xs,ys] )
+                skip = False
+            else :
+                # this part of judgement may not be useful ....
+                L12 = length( shapeV[i-1], shapeV[i] )
+                L12i = length( newOutline[-1], [xs,ys])
+                Lij  = length( [xs,ys] , shapeV[j] )
+                if L12i < L12*2 and Lij > abs(dr) :
+                    newOutline.append( [xs,ys] )
+                else :
+                    skip = True
+                    print(' skip this point %.2f , %.2f' %(xs,ys) )
+                    #newOutline.append( [xs,ys] )
 
         return newOutline
 

@@ -405,7 +405,7 @@ class PatternFill :
         #return arcs
 
 
-    def fillSpaceX(self, pos , n, m, r, dL, sx = 0, sy = 0  ):
+    def fillSpaceX(self, pos , n, m, r, dL, sx = 0, sy = 0, LR = False, UD = True    ):
 
         top, bott, left, right = self.findRange(pos)
 
@@ -416,7 +416,7 @@ class PatternFill :
         #cf = ConcentricFill()
         #cutb = cf.GetOutline( pos, -1*self.bs, False )
 
-        arcs = self.createPatternX( BL, TR, n, m, r, dL, False, True )
+        arcs = self.createPatternX( BL, TR, n, m, r, dL, LR, UD )
         print( ' len of arcs : %d' %( len(arcs) ) )
         patt = self.filterPattern( arcs, pos )
         print( ' len of patt : %d' %( len(patt) ) )

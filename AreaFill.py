@@ -187,10 +187,10 @@ class AreaFill:
 
     # state = 99 which means purge and wipe
     # use rE to store purge time
-    def doPurge(self, purgeTime = 5. , rs=[], rx=[], ry=[], rz=[], rE=[]  ):
+    def doPurge(self, purgeTime = 5. , rs=[], rx=[], ry=[], rz=[], rE=[], nextX = 0, nextY = 0   ):
 
-        rx.append( 355 )
-        ry.append(  0 )
+        rx.append( nextX )
+        ry.append( nextY )
         rz.append( 35 )
         rs.append( 99 )
         rE.append( purgeTime )
@@ -225,6 +225,55 @@ class AreaFill:
         rz.append(z2)
         rs.append(-2)
         rE.append(prime_eval)
+
+
+    def doLeakout(self, p1, z1, p2, z2, connectV=[], rs=[], rx=[], ry=[], rz=[], rE=[] ):
+
+        retract_eval = 0
+        shift_eval = -1
+        # Get the total length
+        L = 0
+        for i in range( len(connectV) ) :
+
+            dx = connectV[i][0] - connectV[i-1][0]
+            dy = connectV[i][1] - connectV[i-1][1]
+            if i == 0 :
+                dx = connectV[i][0] - p1[0]
+                dy = connectV[i][1] - p1[1]
+            dL = math.sqrt( (dx*dx) + (dy*dy) )
+            L = L + dL
+
+        dz0 = (z2 - z1) / L
+
+
+        rx.append(p1[0])
+        ry.append(p1[1])
+        rz.append(z1 )
+        rs.append(2)
+        rE.append(retract_eval)
+
+        for i in range( len(connectV) ) :
+            dx = connectV[i][0] - connectV[i-1][0]
+            dy = connectV[i][1] - connectV[i-1][1]
+            if i == 0 :
+                dx = connectV[i][0] - p1[0]
+                dy = connectV[i][1] - p1[1]
+            dL = math.sqrt( (dx*dx) + (dy*dy) )
+            dz = dz0* dL
+
+            z1 = z1 + dz
+            rx.append( connectV[i][0])
+            ry.append( connectV[i][1])
+            rz.append( z1 )
+            rs.append(0)
+            rE.append(shift_eval)
+
+        rx.append(p2[0])
+        ry.append(p2[1])
+        rz.append(z2 )
+        rs.append(0)
+        rE.append(shift_eval)
+
 
     def getGcode(self, pV , zVal=0, rs=[], rx=[], ry=[], rz=[], rE=[], stat = 1, slope = True ):
 

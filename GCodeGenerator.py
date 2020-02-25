@@ -280,22 +280,24 @@ class GCodeGenerator :
         self.gfile.write('M83                            ; Relative extrusion mode\n')
 
     # At least 30 sec for each pause.
-    def tipWipe(self, pauseTime = 60.0 ):
+    # X limit is 360
+    def tipWipe(self, pauseTime = 60.0, nextX = 0, nextY = 0 ):
 
         # Center of the drain cup
-        x0 = 355
+        x0 = 345
         y0 = 10
         # Distance between cup center to brush left edge
-        Lcb = 55
+        Lcb = 36
         # Brush Length
-        Lbrush = 32
+        Lbrush = 35
         # wiping range (between xL and xR)
         xL = x0 - Lcb
         xR = xL - Lbrush
         # Purge E value
         purgeE = 80
         # Purge distance
-        dX = 10
+        dX = 15
+        dY = 5
 
         # number of pause/drain cycle
         n = int ( pauseTime / 30)
@@ -304,33 +306,46 @@ class GCodeGenerator :
             n = n + 1
 
         self.gfile.write('; Pause and Flush tip \n')
-        self.gfile.write('G0 Z35.000 F8000 \n')
+        self.gfile.write('G0 Z35.500 F8000 \n')
         self.gfile.write('G0 Y%.3f F8000 \n' %(y0) )
         self.gfile.write('G0 X%.3f F8000 \n' %(x0) )
-        self.gfile.write('G4 S3.0                 ; Pause for (time) seconds \n')
-        self.gfile.write('G1 X%.3f E%.3f F8000 \n' %( (x0 - dX),  purgeE) )
+        self.gfile.write('G4 S1.0                 ; Pause for (time) seconds \n')
+        self.gfile.write('G1 X%.3f Y%.3f E%.3f F8000 \n' %( (x0 + dX), y0, purgeE) )
+        self.gfile.write('G1 X%.3f Y%.3f E%.3f F8000 \n' %( (x0 - dX), y0, purgeE) )
+        self.gfile.write('G1 X%.3f Y%.3f E%.3f F8000 \n' %( (x0 + dX), y0, purgeE) )
+
+        y = y0
         for i in range(n) :
 
-            p = 0
-            if i%2 == 0 :
-                p = 1
-            if i%2 == 1 :
-                p = -1
-
             self.gfile.write('G4 S30.0                 ; Pause for (time) seconds \n')
-            self.gfile.write('G1 X%.3f E%.3f F8000 \n' %( (x0 + p*dX), purgeE) )
+            y = y + dY
+            self.gfile.write('G0 Y%.3f F8000 \n' %(y) )
+            self.gfile.write('G1 X%.3f Y%.3f E%.3f F8000 \n' %( (x0 - dX), y, purgeE) )
+            self.gfile.write('G1 X%.3f Y%.3f E%.3f F8000 \n' %( (x0 + dX), y, purgeE) )
+            y = y - (2*dY)
+            self.gfile.write('G0 Y%.3f F8000 \n' %(y) )
+            self.gfile.write('G1 X%.3f Y%.3f E%.3f F8000 \n' %( (x0 - dX), y, purgeE) )
+            self.gfile.write('G1 X%.3f Y%.3f E%.3f F8000 \n' %( (x0 + dX), y, purgeE) )
+            y = y0
+            self.gfile.write('G0 Y%.3f F8000 \n' %(y) )
+
+            ds = 3
+            if i%2 == 1 :
+                ds = -3
+            y = y + ds
 
         if residualTime > 0 :
             self.gfile.write('G4 S%.0f \n' %(residualTime) )
-            self.gfile.write('G1 X%.3f E%.3f F8000 \n' %( x0, purgeE) )
+            self.gfile.write('G1 X%.3f Y%.3f E%.3f F8000 \n' %( x0, y0, purgeE) )
 
         self.gfile.write('G4 S3.0 \n')
         self.gfile.write('G0 X%.3f Y6.000 F8000 \n' %(xL))
-        self.gfile.write('G0 Z26.000 F8000 \n')
+        self.gfile.write('G0 Z30.000 F8000 \n')
         self.gfile.write('G0 X%.3f Y6.000 F8000 \n' %(xR) )
         self.gfile.write('G0 X%.3f Y6.000 F8000 \n' %(xL) )
         self.gfile.write('G0 X%.3f Y6.000 F8000 \n' %(xR) )
-        self.gfile.write('G0 Z27.025 F8000 \n')
+        self.gfile.write('G0 Z30.000 F8000 \n')
+        self.gfile.write('G0 X%.3f Y%.3f F8000 \n' %(nextX, nextY))
 
 
     def initTool(self):
@@ -368,7 +383,6 @@ class GCodeGenerator :
                 self.gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%.0f\n' %( xVal, yVal, zVal, eVal, fVal ) )
 
             if self.rs[i] == 0 :
-                self.gfile.write( '; Retract move \n'  )
                 self.gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%0.0f\n' %( xVal, yVal, zVal, eVal, fVal  ) )
 
             if self.rs[i] == -2 :
@@ -378,7 +392,8 @@ class GCodeGenerator :
             if self.rs[i] == 2 :
                 self.gfile.write( '; Retract Start \n'  )
                 self.gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%.0f\n' %( xVal, yVal, zVal, eVal, fVal ) )
-                self.gfile.write( 'G4 P500\n' )
+                #self.gfile.write( 'G4 P500\n' )
+                self.gfile.write( '; Retract move \n'  )
 
             # status 3 and 4 is for gliding, slow down and giving lower extrude amount
             if self.rs[i] == 3 :
@@ -398,7 +413,7 @@ class GCodeGenerator :
 
             if self.rs[i] == 99 :
                 purgetime = eVal
-                self.tipWipe( purgetime )
+                self.tipWipe( purgetime, xVal, yVal )
 
             if i == (nPoint -1) :
                 self.gfile.write('G1 E-5.000\n')
