@@ -4,12 +4,14 @@ from GWords import GWords
 # Rotate (x,y) CounterClockwise
 #  |x|    [ cos   -sin ] | x0 |
 #  |y| =  [ sin    cos ] | y0 |
-def rotation( pos, theta ) :
+def rotation( pos, theta, xc =0 , yc = 0 ) :
 
-    x0 = pos[0]
-    y0 = pos[1]
+    x0 = pos[0] - xc
+    y0 = pos[1] - yc
     x = x0*math.cos(theta) - y0*math.sin(theta)
     y = x0*math.sin(theta) + y0*math.cos(theta)
+    x = x + xc
+    y = y + yc
     pos[0] = x
     pos[1] = y
 
@@ -49,6 +51,25 @@ def flipY( pos , sx =0 , sy = 0, theta = 0) :
 
     return imgV
 
+# flip g code w.r.t. a X-axis
+def flipX( pos , sx =0 , sy = 0, theta = 0) :
+
+    imgV = []
+    for i in range( len(pos) ) :
+
+        x = pos[i][0]
+        y = pos[i][1]
+
+        yi = -1*y
+        xi = x
+
+        xr = xi*math.cos(theta) - yi*math.sin(theta)
+        yr = xi*math.sin(theta) + yi*math.cos(theta)
+
+        imgV.append( [xr + sx ,yr + sy ] )
+
+    return imgV
+
 def length( p1, p2 ) :
 
     dx = p2[0] - p1[0]
@@ -66,12 +87,21 @@ def shift( pos, dx, dy ) :
 def rotateList( vec, n ) :
 
     vec1 = []
+    closedLoop = False
+    print(' sz of RT  %d ' %( len(vec)) )
     if vec[0] == vec[-1] :
+        closedLoop = True
+        print(' head tail same!')
         del vec[-1]
         vec1 = vec[n:] + vec[:n]
-        vec1.append( vec1[0] )
+        #vec1.append( vec1[0] )
     else :
         vec1 = vec[n:] + vec[:n]
+
+    if closedLoop is True :
+        vec1.append(vec1[0])
+        vec.append( vec[0] )
+        print(' sz of RT %d, %d ' %(len(vec1), len(vec)) )
 
     return vec1
 
@@ -86,6 +116,7 @@ def ReSort( vec ) :
             k = i
             break
 
+    print(' len of vec = %d , at %d ' %(len(vec), k))
     del vec[k]
     vec1 = rotateList(vec, k)
 
@@ -110,9 +141,13 @@ def turnAngle( p1, p2, p3 ) :
     L21 = length( p2, p1 )
     L32 = length( p3, p2 )
 
+    if L21 == 0 or L32 == 0 :
+        print( ' duplicated points !! Zero Degree Angle Return! ' )
+        return 0
+
     cosA = axb / (L21*L32)
     #print(' cosA = %.3f' %(cosA) )
-    if cosA == -1 :
+    if cosA <= -1.0 :
         angle = math.pi
     else :
         angle = math.acos( cosA )
@@ -132,11 +167,14 @@ def sagitta( p1, p2, p3 ) :
     axb = (v21_x*v31_y) -  (v21_y*v31_x)
     L13 = length( p1, p3 )
 
-    s = abs(axb/L13)
+    if L13 == 0 :
+        s = 999999999999
+    else :
+        s = abs(axb/L13)
 
     return s
 
-def Reduce( v, smin = 0.05 ) :
+def Reduce( v, turnLimit = math.pi/2, turnRange = 10, smin = 0.05, sRange = 0.2  ) :
 
     print( 'Reduce v from %d ' %( len(v)) )
     j = 1
@@ -153,13 +191,13 @@ def Reduce( v, smin = 0.05 ) :
         #if angle > ( math.pi/2 ) :
         #    print(' Large angle = %.2f / Lij = %.2f' %(angle*180/math.pi , L_ij))
 
-        if angle > math.pi/2  and L_ij < 10 :
+        if angle > turnLimit  and L_ij < turnRange :
             del v[j]
             print('  delete big turning !!')
             j = j-1
             continue
 
-        if sag < smin or L_ik < 0.2 :
+        if sag < smin or L_ik < sRange :
             #print('  delete insignificant !!')
             del v[j]
             continue

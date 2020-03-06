@@ -51,17 +51,41 @@ class PatternFill :
         pattern.append( [x0+tx, y0+ty ] )
         return pattern
 
-    def unitSquare(self, h, w, dL, x0, y0):
+    # dL is the tail length ( the length to next square )
+    # ds is the deviation for 45 degree turn
+    # phi is the rotation angle
+    def unitSquare(self, h, w, dL, x0, y0, ds = 0, phi = 0 ):
+
+        dsy = ds
+        if h < 0 :
+            dsy = -1*ds
 
         pattern = []
 
-        pattern.append( [x0, y0] )
-        pattern.append( [x0, y0+h] )
-        pattern.append( [x0+w, y0+h] )
-        pattern.append( [x0+w, y0] )
-        pattern.append( [x0+w+dL, y0] )
+        pattern.append( [x0 -ds , y0] )
+        if ds != 0 :
+            pattern.append( [x0 , y0 + dsy ] )
 
-        return pattern
+        pattern.append( [x0, y0+h - dsy] )
+        if ds != 0 :
+            pattern.append( [x0+ds, y0+h] )
+
+        pattern.append( [x0+w -ds, y0+h] )
+        if ds != 0 :
+            pattern.append( [x0+w, y0+h-dsy ] )
+
+        pattern.append( [x0+w, y0+dsy] )
+        if ds != 0 :
+            pattern.append( [x0+w+ds, y0] )
+
+        pattern.append( [x0+w+dL-ds, y0] )
+
+        patternR = []
+        for it in pattern :
+            xr, yr = rotation( it, phi, x0, y0 )
+            patternR.append( [xr, yr] )
+
+        return patternR
 
     def findRange(self, pos ):
 
@@ -154,9 +178,9 @@ class PatternFill :
         L = TR[0] - BL[0]
         H = TR[1] - BL[1]
 
-        # This is the width and height when contructing polygon in 0 degree rotation
+        # This is the width and height when constructing polygon in 0 degree rotation
         # for the pattens lay vertically, the rotation angle is -pi/2
-        w0, h0 = self.unitPolygonSize( n, m, r, dL )
+        w0, h0 = self.unitPolygonSize(n, m, r, dL )
         h1 = h0 + self.bs
 
         # Partition the space
@@ -177,7 +201,7 @@ class PatternFill :
         if LR is False :
             x = TR[0] - (h0/2)
 
-        # setup the dx base on the rounting
+        # setup the dx base on the routing
         dx1 = h1
         dx2 = self.bs
         if LR is False and UD is True :
@@ -221,43 +245,165 @@ class PatternFill :
 
         return arcs
 
+    def createSquareX(self, BL, TR, h, w, ds, dL, LR = True, UD = True  ):
+
+        L = TR[0] - BL[0]
+        H = TR[1] - BL[1]
+
+        # This is the width and height when constructing square
+        # for the pattens lay vertically, the rotation angle is -pi/2
+        w0 = w + dL
+        h1 = h
+
+        # Partition the space
+        nX = int(L / h1) + 2
+        nY = int(H / w0) + 1
+        print(' nX = %d , nY = %d' %(nX, nY) )
+
+        # setup starting point and angle
+        phi = math.pi/-2
+        y = TR[1]
+        dy = (-1*w) - dL
+        if UD is False :
+            phi = math.pi/2
+            y = BL[1]
+            dy = w + dL
+
+        # setup the dx base on the routing
+        x = BL[0]
+        dx = h
+        if LR is False :
+            x = TR[0]
+            dx = -1*h
+        print(' dx = %.3f , dy = %.3f' %(dx, dy) )
+
+        arcs = []
+        for j in range( nX ) :
+
+            for i in range( nY ) :
+
+                if j%2 == 0 :
+                   # def unitSquare(self, h, w, dL, x0, y0, ds = 0, phi = 0 ):
+                    u1 = self.unitSquare( h, w, dL, x, y, ds, phi  )
+                    if i < nY-1 :
+                        del u1[-1]
+                        y = y + dy
+                    #print(' (%.3f,%.3f) from %.3f  to %.3f' %(x,y, u1[0][1], u1[-1][1] ) )
+                    arcs = arcs + u1
+                else :
+                    b1 = self.unitSquare( h, w, dL, x, y, ds, phi )
+                    b1.reverse()
+                    if i < nY-1 :
+                        del b1[-1]
+                        y = y - dy
+                    #print(' (%.3f,%.3f) from %.3f  to %.3f' %(x,y, b1[0][1], b1[-1][1] ) )
+
+                    arcs = arcs + b1
+
+            x = x + dx
+
+        return arcs
+
+    def createSquareY(self, BL, TR, h, w, ds, dL, UD = True, LR = True  ):
+
+        L = TR[0] - BL[0]
+        H = TR[1] - BL[1]
+
+        # This is the width and height when constructing square
+        # for the pattens lay vertically, the rotation angle is -pi/2
+        w0 = w + dL
+        h1 = abs(h)
+
+        # Partition the space
+        nX = int(L / w0) + 1
+        nY = int(H / h1) + 2
+        print(' nX = %d , nY = %d' %(nX, nY) )
+
+        # setup starting point and angle
+        y = TR[1] - h
+        dy = -1*h1
+        if UD is False :
+            y = BL[1]
+            dy = h1
+
+        # setup the dx base on the routing
+        x = BL[0]
+        dx = w + dL
+        phi = 0
+        if LR is False :
+            phi = math.pi
+            x = TR[0]
+            dx = -1*w - dL
+        print(' dx = %.3f , dy = %.3f' %(dx, dy) )
+
+        arcs = []
+        for j in range( nY ) :
+
+            for i in range( nX ) :
+
+                if j%2 == 0 :
+                    # def unitSquare(self, h, w, dL, x0, y0, ds = 0, phi = 0 ):
+                    u1 = self.unitSquare( h, w, dL, x, y, ds, phi  )
+                    if i < nX-1 :
+                        del u1[-1]
+                        x = x + dx
+                    #print(' (%.3f,%.3f) from %.3f  to %.3f' %(x,y, u1[0][1], u1[-1][1] ) )
+                    arcs = arcs + u1
+                else :
+                    b1 = self.unitSquare( h, w, dL, x, y, ds, phi )
+                    b1.reverse()
+                    if i < nX-1 :
+                        del b1[-1]
+                        x = x - dx
+                    #print(' (%.3f,%.3f) from %.3f  to %.3f' %(x,y, b1[0][1], b1[-1][1] ) )
+
+                    arcs = arcs + b1
+
+            y = y + dy
+
+        return arcs
 
 
     # if val == 0  -> colinear and r is between p and q
     #    val == 2  -> colinear and r is Outside p or q
-    #    val == 1  -> clockwise
-    #    val == -1 -> counterclockwise
+    #    val == -1  -> clockwise
+    #    val ==  1 -> counterclockwise
     def orientation(self, p, q, r ):
 
-        val = ( (q[1] - p[1])*(r[0] - q[0]) ) - ( (q[0]-p[0])*(r[1] - q[1]) )
+        # using cross-product to identify whether it's colinear or not
+        #val = ( (q[1] - p[1])*(r[0] - q[0]) ) - ( (q[0]-p[0])*(r[1] - q[1]) )
+        val = ( (q[1] - p[1])*(r[0] - p[0]) ) - ( (q[0]-p[0])*(r[1] - p[1]) )
 
-
-        if val == 0 :
-
+        if val > 0.0000001  :
+            return 1
+        elif val < -0.0000001 :
+            return -1
+        else :
+        #if val == 0 :
             if r[0] <= max(p[0], q[0]) and r[0] >= min(p[0], q[0]) and r[1] <= max(p[1], q[1]) and r[1] >= min( p[1],q[1] ) :
                 return 0
             else :
                 return 2
 
-        if val > 0  :
-            return 1
-        if val < 0 :
-            return -1
 
     # Solve slope (m) and intercept(d) given two points (x1, y1) , (x2, y2)
     #    y = mx + d
     #  |y1| = | x1  1 | | m |
     #  |y2|   | x2  1 | | d |
     #   a = np.array([x1, 1] , [x2,1])   b = [y1, y2] , c = [m,d]
+    # if it's a vertical line, d is set to be x value
     def solveLine(self, x1, y1, x2, y2):
         # to avoid m is infinit
-        if x1 == x2:
-            x2 = x2 * 0.999999
-        a = np.array([[x1, 1.], [x2, 1.]])
-        b = np.array([y1, y2])
-        c = np.linalg.solve(a, b)
-        m = c[0]
-        d = c[1]
+        m = 999999999
+        d = 0
+        if x1 == x2 or abs(x1-x2) < 0.000001:
+            d = (x1+x2)/2
+        else :
+            a = np.array([[x1, 1.], [x2, 1.]])
+            b = np.array([y1, y2])
+            c = np.linalg.solve(a, b)
+            m = c[0]
+            d = c[1]
 
         return m, d
 
@@ -266,14 +412,29 @@ class PatternFill :
 
         m1, d1 = self.solveLine(p1[0], p1[1], q1[0], q1[1])
         m2, d2 = self.solveLine(p2[0], p2[1], q2[0], q2[1])
-        if m1 == m2:
-            m1 = m1 * 1.0000001
-            m2 = m2 * 0.9999999
-        a = np.array([[m1, -1.], [m2, -1.]])
-        b = np.array([-1 * d1, -1 * d2])
-        c = np.linalg.solve(a, b)
-        x = c[0]
-        y = c[1]
+        #print(' m1 = %.3f m2 = %.3f ' %(m1,m2))
+        #print(' d1 = %.3f d2 = %.3f ' %(d1,d2))
+        x = 0
+        y = 0
+        if m1 == 999999999 :
+            x = d1
+            y = (m2*x) + d2
+
+        elif m2 == 999999999 :
+            x = d2
+            y = (m1*x) + d1
+
+        else :
+            if m1 == m2:
+                print(' parallel segments !! m = %.3f ' %(m1))
+                m1 = m1 * 1.0000001
+                m2 = m2 * 0.9999999
+            a = np.array([[m1, -1.], [m2, -1.]])
+            b = np.array([-1 * d1, -1 * d2])
+            c = np.linalg.solve(a, b)
+            x = c[0]
+            y = c[1]
+
         return x, y
         # print( '(%d,%d) = [ %.3f, %.3f ]' %( i, j, c[0], c[1]) )
 
@@ -281,6 +442,13 @@ class PatternFill :
     def doIntersect(self, p1, q1, p2, q2 ):
 
         interlist = []
+
+        if p2[0] == q2[0] and p2[1] == q2[1] :
+            return interlist
+        if p1[0] == q1[0] and p1[1] == q1[1] :
+            return interlist
+
+
         # find out the 4 orientation
         # if val == 0  -> colinear p-r-q
         #    val == 2  -> colinear p-q-r  or r-p-q
@@ -290,8 +458,15 @@ class PatternFill :
         o3 = self.orientation( p2, q2, p1 )
         o4 = self.orientation( p2, q2, q1 )
 
+        colinear = False
+        if  o1 == 0  or o2 == 0 or o3 == 0 or o4 ==0 :
+            colinear = True
+        if  o1 == 2  or o2 == 2 or o3 == 2 or o4 ==2 :
+            colinear = True
+
+
         # General case  for intersection
-        if o1 != o2 and o3 != o4 :
+        if o1 != o2 and o3 != o4 and colinear is False:
             x, y = self.findIntersect( p1, q1, p2, q2 )
             interlist.append( [x,y] )
 
@@ -301,8 +476,9 @@ class PatternFill :
             # p1-p2-q2-q1,
             if o1 == 0 and o2 == 0 :
                 interlist.append( p2 )
+                interlist.append( q2 )
             # p2-p1-q1-q2,
-            if o1 == 3 and o4 == 0 :
+            if o3 == 0 and o4 == 0 :
                 interlist.append( p1 )
 
             if o1 == 0 and o2 != 0 and o3 != 0 and o4 != 0 :
@@ -313,6 +489,10 @@ class PatternFill :
                 interlist.append( p1 )
             if o4 == 0 and o1 != 0 and o2 != 0 and o3 != 0 :
                 interlist.append( q1 )
+
+            #if abs(o1) == 1 and abs(o2) == 1 and o3 == 2 and o4 == 2 :
+            # This is a situation where p2 and q2 are the same
+
 
         return interlist
 
@@ -367,6 +547,9 @@ class PatternFill :
             # If two adjacent boundary points happen, connect them with outline points
             if patV[i][2] == 1 and patV[i-1][2] == 1 and i == 1:
                 patF.append( [patV[i][0], patV[i][1]] )
+            if patV[i][2] == 1 and patV[i-1][2] == 0 and i > 1:
+                patF.append( [patV[i][0], patV[i][1]] )
+
             if patV[i][2] == 1 and patV[i-1][2] == 1 and i > 1:
                 j = patV[i][3]
                 k = patV[i-1][3]
@@ -378,6 +561,8 @@ class PatternFill :
                 if abs(j-k+1) > abs(k-j+1) :
                     for m in range( abs(k-j+1) ) :
                         patF.append( [ pos[k+1+m][0], pos[k+1+m][1] ] )
+
+                patF.append( [patV[i][0], patV[i][1]] )
 
         return patF
 
@@ -417,6 +602,44 @@ class PatternFill :
         #cutb = cf.GetOutline( pos, -1*self.bs, False )
 
         arcs = self.createPatternX( BL, TR, n, m, r, dL, LR, UD )
+        print( ' len of arcs : %d' %( len(arcs) ) )
+        patt = self.filterPattern( arcs, pos )
+        print( ' len of patt : %d' %( len(patt) ) )
+
+        return patt
+        #return arcs
+
+    # Fill space with square pattern
+    def fillSquareX(self, pos , h,w, ds, dL, sx = 0, sy = 0, LR = False, UD = True    ):
+
+        # define space
+        top, bott, left, right = self.findRange(pos)
+
+        TR = [ right[0]+sx, top[1]+sy ]
+        BL = [ left[0]+sx, bott[1]+sy ]
+
+        # create the cutting boundary for filterPattern
+        # createSquareX(self, BL, TR, h, w, ds, dL, LR = True, UD = True  ):
+        arcs = self.createSquareX( BL, TR, h, w, ds, dL, LR, UD )
+        print( ' len of arcs : %d' %( len(arcs) ) )
+        #patt = self.filterPattern( arcs, pos )
+        #print( ' len of patt : %d' %( len(patt) ) )
+
+        #return patt
+        return arcs
+
+
+    def fillSquareY(self, pos , h,w, ds, dL, sx = 0, sy = 0, UD = True, LR = True    ):
+
+        # define space
+        top, bott, left, right = self.findRange(pos)
+
+        TR = [ right[0]+sx, top[1]+sy ]
+        BL = [ left[0]+sx, bott[1]+sy ]
+
+        # create the cutting boundary for filterPattern
+        # createSquareX(self, BL, TR, h, w, ds, dL, LR = True, UD = True  ):
+        arcs = self.createSquareY( BL, TR, h, w, ds, dL, UD, LR )
         print( ' len of arcs : %d' %( len(arcs) ) )
         patt = self.filterPattern( arcs, pos )
         print( ' len of patt : %d' %( len(patt) ) )

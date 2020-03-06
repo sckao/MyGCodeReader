@@ -458,7 +458,7 @@ class AreaFill:
     def findXBoundary(self, theY, pos):
 
         xBlist = []
-        print( ' Find XBoundary for Y = %.2f' %(theY) )
+        #print( ' Find XBoundary for Y = %.2f' %(theY) )
         for i in range( len(pos) )  :
             j = i+1
             if j == len(pos) :
@@ -481,7 +481,7 @@ class AreaFill:
                 xBlist.append( b )
 
 
-        print( 'x boundary list size %d' %( len(xBlist) ) )
+        #print( 'x boundary list size %d' %( len(xBlist) ) )
         #if len(xBlist) == 1 :
         #    for i in range( len(pos)-1 )  :
         #        print( ' y = %.2f , seg Y_i = %.2f , Y_i+1 = %.2f ' %( theY, pos[i][1], pos[i+1][1] ) )

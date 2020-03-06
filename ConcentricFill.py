@@ -146,21 +146,36 @@ class ConcentricFill:
     # updown = True means counter-clockwise
     def GetOutline(self, shapeV, dr,  updown = True ):
 
+        # Identify closed loop
+        closedLoop = False
+        if shapeV[0][0] == shapeV[-1][0] and shapeV[0][1] == shapeV[-1][1] :
+            closedLoop = True
+
+        # filter out duplicated point
+        dlist = []
+        for i in range( len(shapeV) ) :
+            if shapeV[i][0] == shapeV[i-1][0] and shapeV[i][1] == shapeV[i-1][1] :
+                print(' Delete duplicated point (%d) and keep [%d] !! ' %(i-1, i))
+                dlist.append( i-1 )
+
+        for it in dlist :
+            print('del item %d' %(it))
+            del shapeV[it]
+
+
         newOutline = []
         for i in range( len(shapeV) ) :
 
+            j = 0
             if i < len(shapeV)-1 :
                 j = i+1
-            else :
-                j = 0
 
-            if shapeV[i][0] == shapeV[j][0] and shapeV[i][1] == shapeV[j][1] :
-                print(' skip duplicated point (%d) to [%d] !! ' %(i, j))
-                continue
-            if shapeV[i][0] == shapeV[i-1][0] and shapeV[i][1] == shapeV[i-1][1] :
-                print(' skip duplicated point (%d) !! ' %(i) )
-                continue
-
+            #if shapeV[i][0] == shapeV[j][0] and shapeV[i][1] == shapeV[j][1] :
+            #    print(' skip duplicated point (%d) to [%d] !! ' %(i, j))
+            #    continue
+            #if shapeV[i][0] == shapeV[i-1][0] and shapeV[i][1] == shapeV[i-1][1] :
+            #    print(' skip duplicated point (%d) !! ' %(i) )
+            #    continue
 
             pln1 = self.findParallel( shapeV[i-1], shapeV[i], dr, updown )
             pln2 = self.findParallel(   shapeV[i], shapeV[j], dr, updown )
@@ -197,6 +212,10 @@ class ConcentricFill:
                     skip = True
                     print(' skip this point %.2f , %.2f' %(xs,ys) )
                     #newOutline.append( [xs,ys] )
+
+        if closedLoop is True :
+            newOutline.append( newOutline[0] )
+            shapeV.append( shapeV[0] )
 
         return newOutline
 
