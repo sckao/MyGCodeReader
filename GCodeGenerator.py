@@ -297,7 +297,7 @@ class GCodeGenerator :
         purgeE = 80
         # Purge distance
         dX = 15
-        dY = 5
+        dY = 10
 
         # number of pause/drain cycle
         n = int ( pauseTime / 30)
@@ -339,12 +339,18 @@ class GCodeGenerator :
             self.gfile.write('G1 X%.3f Y%.3f E%.3f F8000 \n' %( x0, y0, purgeE) )
 
         self.gfile.write('G4 S3.0 \n')
+
+        # Manual wipe position
+        #self.gfile.write('G0 X%.3f Y280.000 F8000 \n' %(x0))
+        #self.gfile.write('G0 X50.000 Y280.000 F8000 \n' )
+        #self.gfile.write('G4 S3.0 \n')
+
+        # Tip wipe position
         self.gfile.write('G0 X%.3f Y6.000 F8000 \n' %(xL))
-        self.gfile.write('G0 Z30.000 F8000 \n')
         self.gfile.write('G0 X%.3f Y6.000 F8000 \n' %(xR) )
         self.gfile.write('G0 X%.3f Y6.000 F8000 \n' %(xL) )
         self.gfile.write('G0 X%.3f Y6.000 F8000 \n' %(xR) )
-        self.gfile.write('G0 Z30.000 F8000 \n')
+
         self.gfile.write('G0 X%.3f Y%.3f F8000 \n' %(nextX, nextY))
 
 
@@ -360,6 +366,30 @@ class GCodeGenerator :
         self.gfile.write('M163 S2 P0                     ; Enable Extruder \n')
         self.gfile.write('M83                            ; Relative extrusion mode\n')
         self.gfile.write('G1 Z15.0\n')
+
+    def initJuggerBot(self):
+
+        jRA = self.ratioA / 10000
+        jRB = self.ratioB / 10000
+
+        self.gfile.write('G21                            ; Set unit to mm \n')
+        self.gfile.write('T2\n')
+        self.gfile.write('G90\n')
+        self.gfile.write('G28                            ; Home \n')
+        self.gfile.write('G0 Z15.000 F1000\n')
+        self.gfile.write('G30                            ; Single Z probe \n')
+        self.gfile.write('G4 S2                          ; Pause for 2 sec\n')
+        self.gfile.write('G29 S1 P"heightmap.csv"        ; Load bed map \n')
+        self.gfile.write('G4 S2                          ; Pause for 2sec\n')
+        self.gfile.write('G4 S2                          ; Pause for 2sec again \n')
+        self.gfile.write('M98 P"/sys/SetZForPrinting.g"  ; Run macro to set tip height \n')
+        self.gfile.write('M566 Z30.0                     ; Unknown command \n')
+        self.gfile.write('M201 Z50.0                     ; Unknown command \n')
+        self.gfile.write('G92 E0                         ; Reset E \n')
+        # setup index
+        self.gfile.write('M567 P2 E%.3f:%.3f                 ; Set extruder mix ratio A:B\n' %(jRA, jRB))
+        self.gfile.write('M83                            ; Relative extrusion mode\n')
+
 
     def Generate(self):
 
