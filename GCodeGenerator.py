@@ -1,4 +1,5 @@
 import math
+from ZTopography import ZTopography
 
 # Return cos ( 0 ~ pi )
 def dTheta( x1, y1, x2, y2, x3, y3 ) :
@@ -102,6 +103,7 @@ class GCodeGenerator :
         self.ry = ry
         self.rz = rz
         self.rE = rE
+        self.rF = []
         self.F   = F
         self.rho = rho
         self.Eval = F*rho
@@ -122,6 +124,29 @@ class GCodeGenerator :
         if gfilename == '':
             gfilename = 'gout.gcode'
         self.gfile = open( gfilename , 'w')
+
+        self.zmap = ZTopography()
+
+    # 4 :  rho, 5: Fval
+    def loadData(self, glist=[]):
+
+        self.rx = [ it[0] for it in glist ]
+        self.ry = [ it[1] for it in glist ]
+        self.rz = [ it[2] for it in glist ]
+        self.rE = [ it[3] for it in glist ]
+        self.rF = [ it[5] for it in glist ]
+        self.rs = [ it[6] for it in glist ]
+
+    def getZmap(self, nOrder = 2 ):
+
+        zm,xm,ym = self.zmap.readData('heightmap_0430a.csv')
+        fitData = self.zmap.fitSurface(zm, xm, ym, nOrder )
+
+    def getZcorr(self, x, y ):
+
+        p = self.zmap.fitPara
+        z = self.zmap.plane_surface( x,y, p ,self.zmap.nOrder )
+        return z
 
 
     def Shift(self, sx0 = 0., sy0 = 0. , sz0 = 0., sE0 = 1., sF0 = 1. ):
@@ -277,7 +302,7 @@ class GCodeGenerator :
         self.gfile.write('M163 S0 P%d                    ; Set extruder mix ratio B\n' %(self.ratioB))
         self.gfile.write('M163 S1 P%d                    ; Set extruder mix ratio A\n' %(self.ratioA))
         self.gfile.write('M163 S2 P0                     ; Enable Extruder \n')
-        self.gfile.write('M83                            ; Relative extrusion mode\n')
+        #self.gfile.write('M83                            ; Relative extrusion mode\n')
 
     # At least 30 sec for each pause.
     # X limit is 360
@@ -317,7 +342,8 @@ class GCodeGenerator :
         y = y0
         for i in range(n) :
 
-            self.gfile.write('G4 S30.0                 ; Pause for (time) seconds \n')
+            #self.gfile.write('G4 S30.0                 ; Pause for (time) seconds \n')
+            self.gfile.write('G4 S10.0                 ; Pause for (time) seconds \n')
             y = y + dY
             self.gfile.write('G0 Y%.3f F8000 \n' %(y) )
             self.gfile.write('G1 X%.3f Y%.3f E%.3f F8000 \n' %( (x0 - dX), y, purgeE) )
@@ -365,7 +391,7 @@ class GCodeGenerator :
         self.gfile.write('M163 S1 P%d                    ; Set extruder mix ratio A\n' %(self.ratioA))
         self.gfile.write('M163 S2 P0                     ; Enable Extruder \n')
         self.gfile.write('M83                            ; Relative extrusion mode\n')
-        self.gfile.write('G1 Z15.0\n')
+        self.gfile.write('G1 Z25.0\n')
 
     def initJuggerBot(self):
 
@@ -396,13 +422,23 @@ class GCodeGenerator :
         nPoint = len(self.rx)
         print(' total steps %d ' % ( nPoint ))
 
+        self.getZmap(3)
+
         for i in range(nPoint):
 
             xVal = self.rx[i] + self.sx
             yVal = self.ry[i] + self.sy
-            zVal = self.rz[i] + self.sz
+
+            zCorr = self.getZcorr(xVal,yVal )
+
+            zVal = self.rz[i] + self.sz + zCorr
             eVal = self.rE[i]*self.sE
-            fVal   = self.F*self.sF
+
+
+            fVal = self.F*self.sF
+            if len(self.rF ) == len( self.rE ) :
+                fVal = self.rF[i]*self.sF
+
             gfVal1 = self.gF1*self.sF
             gfVal2 = self.gF2*self.sF
 
@@ -413,11 +449,11 @@ class GCodeGenerator :
                 self.gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%.0f\n' %( xVal, yVal, zVal, eVal, fVal ) )
 
             if self.rs[i] == 0 :
-                self.gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%0.0f\n' %( xVal, yVal, zVal, eVal, fVal  ) )
+                self.gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%.0f\n' %( xVal, yVal, zVal, eVal, fVal  ) )
 
             if self.rs[i] == -2 :
-                self.gfile.write( '; Retract Stop \n'  )
                 self.gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f\n' %( xVal, yVal, zVal, eVal ) )
+                self.gfile.write( '; Retract Stop \n'  )
 
             if self.rs[i] == 2 :
                 self.gfile.write( '; Retract Start \n'  )
@@ -440,6 +476,12 @@ class GCodeGenerator :
             if self.rs[i] == 9 :
                 self.gfile.write( '; Ending section\n'  )
                 self.gfile.write( 'G1 X%.3f Y%.3f Z%.3f E%.4f F%.0f\n' %( xVal, yVal, zVal, eVal, fVal/4 ) )
+
+            if self.rs[i] == 98 :
+                mixRatio = eVal
+                self.gfile.write( '; set mixing ratio to %.4f \n' %( eVal ) )
+                self.setMixingRatio( mixRatio )
+                self.setIndex()
 
             if self.rs[i] == 99 :
                 purgetime = eVal
