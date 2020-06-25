@@ -130,7 +130,7 @@ class PatternFill :
 
 
     # BL : bottom-left position, TR : top-right position
-    def createPattern(self, BL, TR, n, m, r, dL  ):
+    def createPatternY(self, BL, TR, n, m, r, dL , LR = True, UD = True  ):
 
         L = TR[0] - BL[0]
         H = TR[1] - BL[1]
@@ -142,33 +142,67 @@ class PatternFill :
         nY = int(H*2 / h1) + 1
         print(' nX = %d , nY = %d' %(nX, nY) )
 
-        x = BL[0] + r
+        # setup starting point and angle
         y = TR[1] - (h0/2)
-        arcs = []
+        if UD is False :
+            y = BL[1] + self.bs
+
+        x = BL[0] + r
+        if LR is False :
+            x = TR[0] - r
+
+        # setup the dx base on the routing
+        dy1 = h1
+        dy2 = self.bs
         dx = (2*r) + dL
-        dy = h1
+        if LR is True and UD is True:
+            dy1 = self.bs
+            dy2 = h1
+            dx = (2*r) + dL
+        if LR is False and UD is True:
+            dy1 = self.bs
+            dy2 = h1
+            dx = (-2*r) - dL
+        if LR is True and UD is False:
+            dy1 = -1*h1
+            dy2 = -1*self.bs
+            dx = (2*r) + dL
+        if LR is False and UD is False:
+            dy1 = -1*h1
+            dy2 = -1*self.bs
+            dx = (-2*r) - dL
+
+
+        arcs = []
         for j in range( nY ) :
 
             for i in range( nX ) :
 
                 if j%2 == 0 :
+                    # upper part
                     u1 = self.unitPolygon( n, r, dL, x, y )
+                    if LR is False :
+                        u1.reverse()
+
                     if i < nX-1 :
                         del u1[-1]
                         x = x + dx
                     arcs = arcs + u1
                 else :
+                    # bottom part
                     b1 = self.unitPolygon( m, r, dL, x, y, True )
-                    b1.reverse()
+                    if LR is True :
+                        b1.reverse()
+
                     if i < nX-1 :
                         del b1[-1]
                         x = x - dx
                     arcs = arcs + b1
 
             if j%2 == 0 :
-                y = y - self.bs
+                y = y - dy1
             else :
-                y = y - dy
+                y = y - dy2
 
         return arcs
 
@@ -522,7 +556,7 @@ class PatternFill :
                 testP = self.doIntersect( p1, qx, p2, q2 )
                 if len(testP) > 0 :
                     itlist.append( testP )
-                # check if the point across the boundary
+                # check if the point across the boundary - return the intersect point
                 boundP = self.doIntersect( p1, q1, p2, q2 )
                 if len(boundP) > 0 :
                     for it in boundP :
@@ -530,6 +564,9 @@ class PatternFill :
 
             # Add the boundary point
             if len(bList) > 0 :
+                if len(patV) > 0 :
+                    print(' blist = %d ' %(len(bList)) )
+                    print(' add boundary = (%.3f, %.3f) --> (%.3f , %.3f) ' %( patV[-1][0], patV[-1][1], bList[0][0], bList[0][1] ) )
                 patV.append( [bList[0][0], bList[0][1], 1, bList[0][2] ] )
 
             # odd number of intersection means the point is inside the polygon
@@ -567,7 +604,7 @@ class PatternFill :
         return patF
 
 
-    def fillSpace(self, pos , n, m, r, dL, sx = 0, sy = 0  ):
+    def fillSpaceY(self, pos , n, m, r, dL, sx = 0, sy = 0, LR = False, UD = True  ):
 
         top, bott, left, right = self.findRange(pos)
 
@@ -581,7 +618,7 @@ class PatternFill :
         #cf = ConcentricFill()
         #cutb = cf.GetOutline( pos, -1*self.bs, False )
 
-        arcs = self.createPattern( BL, TR, n, m, r, dL )
+        arcs = self.createPatternY( BL, TR, n, m, r, dL, LR, UD )
         print( ' len of arcs : %d' %( len(arcs) ) )
         patt = self.filterPattern( arcs, pos )
         print( ' len of patt : %d' %( len(patt) ) )
