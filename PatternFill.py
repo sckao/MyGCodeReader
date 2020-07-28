@@ -128,6 +128,124 @@ class PatternFill :
 
         return width, height
 
+    def createWaveY(self, BL, TR, n, r, dL , dy, LR = True, UD = True  ):
+
+        L = TR[0] - BL[0]
+        H = TR[1] - BL[1]
+
+        w0, h0 = self.unitPolygonSize( n, n, r, dL )
+
+        nX = int(L / w0) + 2
+        nY = int(( H*2 - h0)/dy ) + 2
+        print(' nX = %d , nY = %d' %(nX, nY) )
+
+        # setup starting point and angle
+        y = TR[1] - (h0/2)
+        if UD is False :
+            y = BL[1] + self.bs
+
+        x = BL[0] + r
+        if LR is False :
+            x = TR[0] - r
+
+        # setup the dx base on the routing
+        dx = (2*r) + dL
+        if LR is True and UD is True:
+            dx = (2*r) + dL
+        if LR is False and UD is True:
+            dx = (-2*r) - dL
+        if LR is True and UD is False:
+            dy = -1*dy
+            dx = (2*r) + dL
+        if LR is False and UD is False:
+            dy = -1*dy
+            dx = (-2*r) - dL
+
+
+        arcs = []
+        for j in range( nY ) :
+
+            for i in range( nX ) :
+
+                if j%2 == 0 :
+                    # upper part
+                    u1 = self.unitPolygon( n, r, dL, x, y )
+                    if LR is False :
+                        u1.reverse()
+
+                    if i < nX-1 :
+                        del u1[-1]
+                        x = x + dx
+                    arcs = arcs + u1
+                else :
+                    # bottom part
+                    b1 = self.unitPolygon( n, r, dL, x, y )
+                    if LR is True :
+                        b1.reverse()
+
+                    if i < nX-1 :
+                        del b1[-1]
+                        x = x - dx
+                    arcs = arcs + b1
+
+            y = y - dy
+
+        return arcs
+
+    # need to check and verify
+    def createWaveX(self, BL, TR, n, r, dL, dx, LR = True, UD = True  ):
+
+        L = TR[0] - BL[0]
+        H = TR[1] - BL[1]
+
+        # This is the width and height when constructing polygon in 0 degree rotation
+        # for the pattens lay vertically, the rotation angle is -pi/2
+        w0, h0 = self.unitPolygonSize(n, n, r, dL )
+
+        # Partition the space
+        nX = int( (L*2 - h0)/dx) + 2
+        nY = int(H / w0) + 2
+        print(' nX = %d , nY = %d' %(nX, nY) )
+
+        # setup starting point and angle
+        phi = math.pi/-2
+        y = TR[1] - r
+        dy = (2*r) + dL
+        if UD is False :
+            phi = math.pi/2
+            y = BL[1] + r
+            dy = (-2*r) - dL
+
+        x = BL[0] + (h0/2)
+        if LR is False :
+            x = TR[0] - (h0/2)
+            dx = -1*dx
+
+
+        arcs = []
+        for j in range( nX ) :
+
+            for i in range( nY ) :
+
+                if j%2 == 0 :
+                    u1 = self.unitPolygon( n, r, dL, x, y, False, phi  )
+                    if i < nY-1 :
+                        del u1[-1]
+                        y = y - dy
+                    arcs = arcs + u1
+                else :
+                    b1 = self.unitPolygon( n, r, dL, x, y, True, phi )
+                    b1.reverse()
+                    if i < nY-1 :
+                        del b1[-1]
+                        y = y + dy
+
+                    arcs = arcs + b1
+
+            x = x + dx
+
+        return arcs
+
 
     # BL : bottom-left position, TR : top-right position
     def createPatternY(self, BL, TR, n, m, r, dL , LR = True, UD = True  ):
@@ -564,9 +682,10 @@ class PatternFill :
 
             # Add the boundary point
             if len(bList) > 0 :
-                if len(patV) > 0 :
-                    print(' blist = %d ' %(len(bList)) )
-                    print(' add boundary = (%.3f, %.3f) --> (%.3f , %.3f) ' %( patV[-1][0], patV[-1][1], bList[0][0], bList[0][1] ) )
+                #if len(patV) > 0 :
+                    # debug
+                    # print(' blist = %d ' %(len(bList)) )
+                    # print(' add boundary = (%.3f, %.3f) --> (%.3f , %.3f) ' %( patV[-1][0], patV[-1][1], bList[0][0], bList[0][1] ) )
                 patV.append( [bList[0][0], bList[0][1], 1, bList[0][2] ] )
 
             # odd number of intersection means the point is inside the polygon
@@ -683,3 +802,40 @@ class PatternFill :
 
         return patt
         #return arcs
+
+
+    def fillWaveY(self, pos , n, r, dL, dy, sx = 0, sy = 0, LR = False, UD = True  ):
+
+        top, bott, left, right = self.findRange(pos)
+
+        TR = [ right[0]+sx, top[1]+sy ]
+        BL = [ left[0]+sx, bott[1]+sy ]
+
+        # create the cutting boundary for filterPattern
+        #cf = ConcentricFill()
+        #cutb = cf.GetOutline( pos, -1*self.bs, False )
+        arcs = self.createWaveY( BL, TR, n, r, dL, dy, LR, UD )
+        print( ' len of arcs : %d' %( len(arcs) ) )
+        patt = self.filterPattern( arcs, pos )
+        print( ' len of patt : %d' %( len(patt) ) )
+
+        return patt
+
+
+    def fillWaveX(self, pos , n, r, dL, dx, sx = 0, sy = 0, LR = False, UD = True    ):
+
+        top, bott, left, right = self.findRange(pos)
+
+        TR = [ right[0]+sx, top[1]+sy ]
+        BL = [ left[0]+sx, bott[1]+sy ]
+
+        # create the cutting boundary for filterPattern
+        #cf = ConcentricFill()
+        #cutb = cf.GetOutline( pos, -1*self.bs, False )
+
+        arcs = self.createPatternX( BL, TR, n, r, dL, dx, LR, UD )
+        print( ' len of arcs : %d' %( len(arcs) ) )
+        patt = self.filterPattern( arcs, pos )
+        print( ' len of patt : %d' %( len(patt) ) )
+
+        return patt
